@@ -53,26 +53,29 @@ const Dashboard = () => {
         label: 'Next Appointment',
         value: next
           ? `${dayjs(next.date).format('MMM D, YYYY')}`
-          : 'No upcoming visit',
+          : 'No appointments yet',
         subtext: next
           ? `with ${next.doctor?.name || 'your doctor'} at ${next.time}`
-          : 'Tap to book your next appointment',
+          : 'Would you like to book one?',
+        action: next ? 'View Details' : 'Book Now',
         icon: <CalendarMonthIcon />,
-        path: '/appointments',
+        path: next ? '/appointments' : '/book',
       },
       {
         label: 'Past Visits',
         value: completedCount.toString(),
         subtext: completedCount === 1 ? 'visit recorded' : 'visits recorded',
+        action: 'View Details',
         icon: <HistoryIcon />,
         path: '/appointments',
       },
       {
         label: 'Profile Status',
-        value: profileComplete ? 'Complete' : 'Incomplete',
+        value: profileComplete ? 'Ready' : 'Add info',
         subtext: profileComplete
           ? 'All required fields filled'
           : `${filledFields} of ${requiredFields.length} required fields filled`,
+        action: 'View Details',
         icon: <PersonIcon />,
         path: '/profile',
       },
@@ -83,14 +86,21 @@ const Dashboard = () => {
     <Box sx={{ pt: 2, pb: 6, px: { xs: 2, sm: 3 } }}>
       <PageHeader
         title={`Welcome, ${user?.name || 'Patient'}!`}
-        subtitle="Manage your health appointments and medical records."
+        subtitle="Book your appointments and view your medical records."
       />
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {stats.map((stat) => (
           <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={stat.label}>
             <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} style={{ height: '100%' }}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Card sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                // Signature: the Next Appointment card reads as a prescription
+                // slip with a warm amber left stripe.
+                borderLeft: stat.label === 'Next Appointment' ? '4px solid #C8862A' : undefined,
+              }}>
                 <CardActionArea
                   onClick={() => navigate(stat.path)}
                   sx={{
@@ -112,7 +122,7 @@ const Dashboard = () => {
                         p: 1.25,
                         borderRadius: '50%',
                         color: 'primary.main',
-                        bgcolor: 'rgba(21, 101, 192, 0.10)',
+                        bgcolor: 'rgba(61, 90, 76, 0.10)',
                       }}
                     >
                       {React.cloneElement(stat.icon, { sx: { fontSize: 24 } })}
@@ -142,7 +152,7 @@ const Dashboard = () => {
                         transition: 'transform 0.2s ease',
                       }}
                     >
-                      View Details
+                      {stat.action}
                       <ArrowForwardIcon sx={{ fontSize: 18, ml: 0.5 }} />
                     </Box>
                   </Box>
@@ -157,8 +167,8 @@ const Dashboard = () => {
         sx={{
           p: { xs: 3, sm: 4 },
           borderRadius: 4,
-          background: 'linear-gradient(135deg, #1565C0 0%, #42A5F5 100%)',
-          color: '#fff',
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
           textAlign: 'left',
           position: 'relative',
           overflow: 'hidden',
@@ -171,7 +181,7 @@ const Dashboard = () => {
       >
         <Box sx={{ maxWidth: { sm: '100%', md: '60%' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-            <EventAvailableIcon sx={{ fontSize: 28, color: '#fff' }} />
+            <EventAvailableIcon sx={{ fontSize: 28, color: '#C8862A' }} />
             <Typography variant="h5" fontWeight={700}>
               Ready for your next checkup?
             </Typography>
@@ -186,8 +196,8 @@ const Dashboard = () => {
           onClick={() => navigate('/book')}
           sx={{
             bgcolor: '#fff',
-            color: '#1565C0',
-            '&:hover': { bgcolor: '#f0f7ff' },
+            color: '#3D5A4C',
+            '&:hover': { bgcolor: '#F7F0E6' },
             px: 4,
             fontWeight: 700,
             boxShadow: '0 4px 14px rgba(0,0,0,0.15)',

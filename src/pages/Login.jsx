@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -17,9 +17,10 @@ import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import MuiLink from '@mui/material/Link';
 import { toast } from 'react-toastify';
 import { login, clearError } from '../features/authSlice';
-import ParticleBackground from '../components/ParticleBackground';
 
 const Login = () => {
   const dispatch = useDispatch();
@@ -27,20 +28,6 @@ const Login = () => {
   const { loading, error } = useSelector((state) => state.auth);
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width - 0.5;
-      const y = (e.clientY - rect.top) / rect.height - 0.5;
-      setMousePosition({ x, y });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,6 +41,11 @@ const Login = () => {
     } catch (err) {
       toast.error(err || 'Login failed');
     }
+  };
+
+  const handleForgotPassword = (e) => {
+    e.preventDefault();
+    toast.info('To reset your password, please contact your clinic. They can issue a new one for you.');
   };
 
   const containerVariants = {
@@ -89,7 +81,7 @@ const Login = () => {
     },
     hover: {
       scale: 1.03,
-      boxShadow: '0 8px 25px rgba(21,101,192,0.4)',
+      boxShadow: '0 8px 25px rgba(33,28,22,0.18)',
       transition: { duration: 0.2 }
     }
   };
@@ -104,24 +96,26 @@ const Login = () => {
   };
 
   return (
-    <Box ref={containerRef} component={motion.div} variants={containerVariants} initial="hidden" animate="visible"
+    <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible"
       sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden',
-        background: 'linear-gradient(135deg, #0D47A1 0%, #1565C0 30%, #42A5F5 70%, #90CAF9 100%)' }}>
-      <ParticleBackground mousePosition={mousePosition} />
-
+        bgcolor: 'background.default' }}>
       <Card component={motion.div} variants={cardVariants} initial="hidden" animate="visible"
-        sx={{ width: 420, mx: 2, overflow: 'visible', position: 'relative', zIndex: 1 }}>
+        sx={{ width: { xs: 'calc(100% - 32px)', sm: 420 }, maxWidth: 420, mx: 2, overflow: 'visible', position: 'relative', zIndex: 1, borderTop: '4px solid #C8862A' }}>
         <Box component={motion.div} variants={logoVariants} initial="hidden" animate="visible"
-          sx={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, #1565C0, #42A5F5)',
+          sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: 'primary.main',
             display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: -36, left: '50%',
-            transform: 'translateX(-50%)', boxShadow: '0 4px 20px rgba(21,101,192,0.4)' }}>
-          <LocalHospitalIcon sx={{ fontSize: 36, color: '#fff' }} />
+            transform: 'translateX(-50%)', boxShadow: '0 4px 20px rgba(33,28,22,0.2)' }}>
+          <LocalHospitalIcon sx={{ fontSize: 36, color: 'primary.contrastText' }} />
         </Box>
         <CardContent sx={{ pt: 6, px: 4, pb: 4 }}>
-          <Typography variant="h5" textAlign="center" fontWeight={700} gutterBottom>Welcome Back</Typography>
+          <Typography variant="h4" textAlign="center" gutterBottom sx={{ fontFamily: '"Crimson Pro", Georgia, serif', fontWeight: 700 }}>Welcome back</Typography>
           <Typography variant="body2" textAlign="center" color="text.secondary" sx={{ mb: 3 }}>Sign in to Vaidya Patient Portal</Typography>
 
           {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => dispatch(clearError())}>{error}</Alert>}
+
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, textAlign: 'right' }}>
+            * Required fields
+          </Typography>
 
           <Box component="form" onSubmit={handleSubmit}>
             <motion.div variants={inputVariants} custom={0}>
@@ -129,12 +123,17 @@ const Login = () => {
                 slotProps={{ input: { startAdornment: <InputAdornment position="start"><EmailIcon color="action" /></InputAdornment> } }} />
             </motion.div>
             <motion.div variants={inputVariants} custom={1}>
-              <TextField fullWidth label="Password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required sx={{ mb: 3 }}
+              <TextField fullWidth label="Password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required sx={{ mb: 1 }}
                 slotProps={{ input: {
                   startAdornment: <InputAdornment position="start"><LockIcon color="action" /></InputAdornment>,
                   endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowPassword(!showPassword)} edge="end">{showPassword ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>
                 } }} />
             </motion.div>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+              <MuiLink href="#" onClick={handleForgotPassword} underline="hover" sx={{ fontSize: '0.875rem', color: 'primary.main', fontWeight: 600 }}>
+                Forgot password?
+              </MuiLink>
+            </Box>
             <motion.div variants={buttonVariants} initial="hidden" animate="visible" whileHover="hover">
               <Button type="submit" variant="contained" fullWidth size="large" disabled={loading} sx={{ py: 1.5, fontSize: '1rem' }}>
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
@@ -142,8 +141,13 @@ const Login = () => {
             </motion.div>
           </Box>
 
-          <Typography variant="body2" textAlign="center" sx={{ mt: 3 }}>
-            Don&apos;t have an account?{' '}<Link to="/register" style={{ color: '#1565C0', fontWeight: 600 }}>Register</Link>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75, mt: 3, color: 'text.secondary' }}>
+            <LockOutlinedIcon sx={{ fontSize: 16 }} />
+            <Typography variant="caption">Your data is encrypted and secure</Typography>
+          </Box>
+
+          <Typography variant="body2" textAlign="center" sx={{ mt: 2 }}>
+            Don&apos;t have an account?{' '}<Link to="/register" style={{ color: '#3D5A4C', fontWeight: 600 }}>Register</Link>
           </Typography>
         </CardContent>
       </Card>

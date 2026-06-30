@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -21,7 +21,6 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import Grid from '@mui/material/Grid';
 import { toast } from 'react-toastify';
 import { registerPatient, clearError } from '../features/authSlice';
-import ParticleBackground from '../components/ParticleBackground';
 
 const Register = () => {
   const dispatch = useDispatch();
@@ -32,20 +31,6 @@ const Register = () => {
     age: '', gender: 'Male', address: '', bloodGroup: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width - 0.5;
-      const y = (e.clientY - rect.top) / rect.height - 0.5;
-      setMousePosition({ x, y });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -101,7 +86,7 @@ const Register = () => {
     },
     hover: {
       scale: 1.03,
-      boxShadow: '0 8px 25px rgba(21,101,192,0.4)',
+      boxShadow: '0 8px 25px rgba(33,28,22,0.18)',
       transition: { duration: 0.2 }
     }
   };
@@ -116,21 +101,19 @@ const Register = () => {
   };
 
   return (
-    <Box ref={containerRef} component={motion.div} variants={containerVariants} initial="hidden" animate="visible"
+    <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible"
       sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden',
-        background: 'linear-gradient(135deg, #0D47A1 0%, #1565C0 30%, #42A5F5 70%, #90CAF9 100%)', py: 4 }}>
-      <ParticleBackground mousePosition={mousePosition} />
-
+        bgcolor: 'background.default', py: 4 }}>
       <Card component={motion.div} variants={cardVariants} initial="hidden" animate="visible"
-        sx={{ width: 600, mx: 2, overflow: 'visible', position: 'relative', zIndex: 1 }}>
+        sx={{ width: { xs: 'calc(100% - 32px)', sm: 600 }, maxWidth: 600, mx: 2, overflow: 'visible', position: 'relative', zIndex: 1, borderTop: '4px solid #C8862A' }}>
         <Box component={motion.div} variants={logoVariants} initial="hidden" animate="visible"
-          sx={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, #1565C0, #42A5F5)',
+          sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: 'primary.main',
             display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: -36, left: '50%',
-            transform: 'translateX(-50%)', boxShadow: '0 4px 20px rgba(21,101,192,0.4)' }}>
-          <LocalHospitalIcon sx={{ fontSize: 36, color: '#fff' }} />
+            transform: 'translateX(-50%)', boxShadow: '0 4px 20px rgba(33,28,22,0.2)' }}>
+          <LocalHospitalIcon sx={{ fontSize: 36, color: 'primary.contrastText' }} />
         </Box>
         <CardContent sx={{ pt: 6, px: 4, pb: 4 }}>
-          <Typography variant="h5" textAlign="center" fontWeight={700} gutterBottom>Create Account</Typography>
+          <Typography variant="h4" textAlign="center" gutterBottom sx={{ fontFamily: '"Crimson Pro", Georgia, serif', fontWeight: 700 }}>Create your account</Typography>
           <Typography variant="body2" textAlign="center" color="text.secondary" sx={{ mb: 3 }}>Join Vaidya Patient Portal</Typography>
 
           {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => dispatch(clearError())}>{error}</Alert>}
@@ -195,7 +178,7 @@ const Register = () => {
           </Box>
 
           <Typography variant="body2" textAlign="center" sx={{ mt: 3 }}>
-            Already have an account?{' '}<Link to="/login" style={{ color: '#1565C0', fontWeight: 600 }}>Sign In</Link>
+            Already have an account?{' '}<Link to="/login" style={{ color: '#3D5A4C', fontWeight: 600 }}>Sign In</Link>
           </Typography>
         </CardContent>
       </Card>

@@ -39,13 +39,16 @@ const PageHeader = ({ title, icon, subtitle, actions }) => (
       <Box>
         <Typography
           variant="h4"
+          component="h1"
           fontWeight={700}
           sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' }, lineHeight: 1.2 }}
         >
           {title}
         </Typography>
+        {/* Warm amber accent rule — the manuscript signature under each page title. */}
+        <Box sx={{ width: 40, height: 3, borderRadius: 2, bgcolor: '#C8862A', mt: 1 }} />
         {subtitle && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {subtitle}
           </Typography>
         )}

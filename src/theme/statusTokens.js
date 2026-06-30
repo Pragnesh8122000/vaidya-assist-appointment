@@ -7,7 +7,7 @@
 
 export const STATUS_META = {
   Waiting: {
-    label: 'Waiting',
+    label: 'Upcoming',
     muiColor: 'warning',
     fg: '#92400E', // amber-800
     bg: '#FFFBEB', // amber-50
@@ -54,16 +54,23 @@ export const isPastStatus = (status) =>
  * Sanitize and format a free-text appointment reason for display.
  * - Trims leading/trailing whitespace.
  * - Collapses multiple spaces.
- * - Sentence-cases the first character.
+ * - If the text is typed in ALL CAPS (which reads as shouting and is harder
+ *   to read, especially for older adults), restyles it to sentence case.
+ * - Otherwise, sentence-cases only the first character (preserves proper
+ *   nouns, dosages, etc. that mix case intentionally).
  * - Truncates to `maxLength` with an ellipsis when too long.
  */
 export const formatReason = (reason, maxLength = 120) => {
   if (!reason || typeof reason !== 'string') return '';
   const cleaned = reason.replace(/\s+/g, ' ').trim();
   if (!cleaned) return '';
-  const sentence = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-  if (sentence.length <= maxLength) return sentence;
-  return `${sentence.slice(0, maxLength).trim()}…`;
+  const hasLetters = /[a-zA-Z]/.test(cleaned);
+  const isAllCaps = hasLetters && cleaned === cleaned.toUpperCase();
+  const base = isAllCaps
+    ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
+    : cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  if (base.length <= maxLength) return base;
+  return `${base.slice(0, maxLength).trim()}…`;
 };
 
 /**
