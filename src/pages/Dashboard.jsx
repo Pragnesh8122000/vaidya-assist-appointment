@@ -5,13 +5,13 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
+import CardActionArea from '@mui/material/CardActionArea';
 import Button from '@mui/material/Button';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import HistoryIcon from '@mui/icons-material/History';
 import PersonIcon from '@mui/icons-material/Person';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import dayjs from 'dayjs';
 import { motion } from 'framer-motion';
 import PageHeader from '../components/PageHeader';
@@ -32,7 +32,8 @@ const Dashboard = () => {
     const today = dayjs().startOf('day');
 
     const upcoming = appointments
-      .filter((apt) => !['Cancelled'].includes(apt.status) && dayjs(apt.date).startOf('day').isAfter(today.clone().subtract(1, 'day')))
+      .filter((apt) => !['Cancelled', 'Completed'].includes(apt.status)
+        && dayjs(apt.date).startOf('day').isAfter(today.clone().subtract(1, 'day')))
       .sort((a, b) => {
         const dateDiff = dayjs(a.date).diff(dayjs(b.date), 'day');
         if (dateDiff !== 0) return dateDiff;
@@ -40,71 +41,112 @@ const Dashboard = () => {
       });
 
     const next = upcoming[0];
-    const nextAppointment = next
-      ? `${dayjs(next.date).format('MMM D, YYYY')} · ${next.time}`
-      : 'No upcoming appointments';
 
     const completedCount = appointments.filter((apt) => apt.status === 'Completed').length;
 
-    const profileComplete =
-      profile && profile.name && profile.email && profile.phone;
-    const profileStatus = profileComplete ? 'Complete' : 'Incomplete';
+    const requiredFields = ['name', 'email', 'phone'];
+    const filledFields = requiredFields.filter((key) => profile?.[key]).length;
+    const profileComplete = filledFields === requiredFields.length;
 
     return [
       {
         label: 'Next Appointment',
-        value: nextAppointment,
+        value: next
+          ? `${dayjs(next.date).format('MMM D, YYYY')}`
+          : 'No upcoming visit',
+        subtext: next
+          ? `with ${next.doctor?.name || 'your doctor'} at ${next.time}`
+          : 'Tap to book your next appointment',
         icon: <CalendarMonthIcon />,
-        color: '#1565C0',
         path: '/appointments',
       },
       {
         label: 'Past Visits',
         value: completedCount.toString(),
+        subtext: completedCount === 1 ? 'visit recorded' : 'visits recorded',
         icon: <HistoryIcon />,
-        color: '#00897B',
         path: '/appointments',
       },
       {
         label: 'Profile Status',
-        value: profileStatus,
+        value: profileComplete ? 'Complete' : 'Incomplete',
+        subtext: profileComplete
+          ? 'All required fields filled'
+          : `${filledFields} of ${requiredFields.length} required fields filled`,
         icon: <PersonIcon />,
-        color: '#F57F17',
         path: '/profile',
       },
     ];
   }, [appointments, profile]);
 
   return (
-    <Box sx={{ pt: 2, pb: 6, px: { xs: 1, sm: 2 } }}>
+    <Box sx={{ pt: 2, pb: 6, px: { xs: 2, sm: 3 } }}>
       <PageHeader
         title={`Welcome, ${user?.name || 'Patient'}!`}
         subtitle="Manage your health appointments and medical records."
       />
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         {stats.map((stat) => (
           <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={stat.label}>
-            <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
-              <Card sx={{ p: 3, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: `${stat.color}20`, color: stat.color }}>
-                    {stat.icon}
+            <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} style={{ height: '100%' }}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardActionArea
+                  onClick={() => navigate(stat.path)}
+                  sx={{
+                    height: '100%',
+                    p: 3,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    textAlign: 'left',
+                    gap: 2,
+                    '&:hover .stat-arrow': { transform: 'translateX(4px)' },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                    <Box
+                      sx={{
+                        display: 'inline-flex',
+                        p: 1.25,
+                        borderRadius: '50%',
+                        color: 'primary.main',
+                        bgcolor: 'rgba(21, 101, 192, 0.10)',
+                      }}
+                    >
+                      {React.cloneElement(stat.icon, { sx: { fontSize: 24 } })}
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                        {stat.label}
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="text.primary" sx={{ lineHeight: 1.25 }}>
+                        {stat.value}
+                      </Typography>
+                    </Box>
                   </Box>
-                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                    {stat.label}
-                  </Typography>
-                  <Typography variant="h6" fontWeight={700}>{stat.value}</Typography>
-                  <Button
-                    variant="text"
-                    size="small"
-                    onClick={() => navigate(stat.path)}
-                    endIcon={<ArrowForwardIcon />}
-                    sx={{ mt: 1, color: stat.color }}
-                  >
-                    View Details
-                  </Button>
-                </Box>
+
+                  <Box sx={{ width: '100%' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, lineHeight: 1.4 }}>
+                      {stat.subtext}
+                    </Typography>
+                    <Box
+                      className="stat-arrow"
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        color: 'primary.main',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        transition: 'transform 0.2s ease',
+                      }}
+                    >
+                      View Details
+                      <ArrowForwardIcon sx={{ fontSize: 18, ml: 0.5 }} />
+                    </Box>
+                  </Box>
+                </CardActionArea>
               </Card>
             </motion.div>
           </Grid>
@@ -113,32 +155,31 @@ const Dashboard = () => {
 
       <Box
         sx={{
-          mt: 6,
-          p: 4,
+          p: { xs: 3, sm: 4 },
           borderRadius: 4,
           background: 'linear-gradient(135deg, #1565C0 0%, #42A5F5 100%)',
           color: '#fff',
-          textAlign: 'center',
+          textAlign: 'left',
           position: 'relative',
           overflow: 'hidden',
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { xs: 'flex-start', md: 'center' },
+          justifyContent: 'space-between',
+          gap: 3,
         }}
       >
-        <LocalHospitalIcon
-          sx={{
-            position: 'absolute',
-            right: -20,
-            bottom: -20,
-            fontSize: 150,
-            opacity: 0.1,
-            color: '#fff',
-          }}
-        />
-        <Typography variant="h5" fontWeight={700} gutterBottom>
-          Ready for your next checkup?
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 3, opacity: 0.9 }}>
-          Quickly book a slot with your doctor without waiting in queues.
-        </Typography>
+        <Box sx={{ maxWidth: { sm: '100%', md: '60%' } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+            <EventAvailableIcon sx={{ fontSize: 28, color: '#fff' }} />
+            <Typography variant="h5" fontWeight={700}>
+              Ready for your next checkup?
+            </Typography>
+          </Box>
+          <Typography variant="body1" sx={{ opacity: 0.95, maxWidth: 520 }}>
+            Quickly book a slot with your doctor without waiting in queues. We'll send you a reminder before your visit.
+          </Typography>
+        </Box>
         <Button
           variant="contained"
           size="large"
@@ -146,9 +187,11 @@ const Dashboard = () => {
           sx={{
             bgcolor: '#fff',
             color: '#1565C0',
-            '&:hover': { bgcolor: '#f0f0f0' },
+            '&:hover': { bgcolor: '#f0f7ff' },
             px: 4,
             fontWeight: 700,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+            flexShrink: 0,
           }}
         >
           Book Appointment Now
