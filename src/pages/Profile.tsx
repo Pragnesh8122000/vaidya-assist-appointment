@@ -73,11 +73,11 @@ const Profile = () => {
         You&apos;re viewing a demo profile.{' '}
         <Box
           component="a"
-          href="/register"
-          onClick={(e: React.MouseEvent) => { e.preventDefault(); window.location.href = '/register'; }}
+          href="/login"
+          onClick={(e: React.MouseEvent) => { e.preventDefault(); window.location.href = '/login'; }}
           sx={{ color: 'primary.main', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
         >
-          Create an account
+          Login/Register
         </Box>{' '}
         to manage your own information.
       </Typography>
