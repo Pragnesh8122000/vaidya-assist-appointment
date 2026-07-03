@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import type { AppDispatch } from '../app/store';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import type { RootState } from '../app/store';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
@@ -16,6 +18,7 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import Chip from '@mui/material/Chip';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -27,22 +30,36 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import LogoutIcon from '@mui/icons-material/Logout';
+import LoginIcon from '@mui/icons-material/Login';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
-
-import { logout } from '../features/authSlice';
+import LockIcon from '@mui/icons-material/Lock';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { logout, exitGuestMode } from '../features/authSlice';
 import { toggleSidebar, toggleDarkMode } from '../features/uiSlice';
 import Footer from '../components/Footer';
-
+import RestrictionToast from '../components/RestrictionToast';
 const DRAWER_WIDTH = 260;
 const MINI_WIDTH = 72;
 
-const navGroups = [
+interface NavItem {
+  text: string;
+  icon: React.ReactElement;
+  path: string;
+  restricted?: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const buildNavGroups = (_isGuest: boolean): NavGroup[] => [
   {
     label: 'Main',
     items: [
       { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-      { text: 'Book Appointment', icon: <CalendarMonthIcon />, path: '/book' },
+      { text: 'Book Appointment', icon: <CalendarMonthIcon />, path: '/book', restricted: true },
       { text: 'My Appointments', icon: <HistoryIcon />, path: '/appointments' },
     ],
   },
@@ -50,27 +67,40 @@ const navGroups = [
     label: 'Account',
     items: [
       { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
-      { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+      { text: 'Settings', icon: <SettingsIcon />, path: '/settings', restricted: true },
     ],
   },
 ];
 
-const menuItems = navGroups.flatMap((group) => group.items);
-
 const MainLayout = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { user } = useSelector((state) => state.auth);
-  const { sidebarOpen, darkMode } = useSelector((state) => state.ui);
-  const [userAnchor, setUserAnchor] = useState(null);
+  const { user, isGuest } = useSelector((state: RootState) => state.auth);
+  const { sidebarOpen, darkMode } = useSelector((state: RootState) => state.ui);
+  const [userAnchor, setUserAnchor] = useState<HTMLElement | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [restrictionToast, setRestrictionToast] = useState<string | null>(null);
+
+  const navGroups = buildNavGroups(isGuest);
+  const flatItems = navGroups.flatMap((group) => group.items);
+
+  const handleRestrictedClick = (item: NavItem) => {
+    setRestrictionToast(
+      `"${item.text}" is not available in demo mode. Please create an account to use this feature.`
+    );
+  };
 
   const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
+    if (isGuest) {
+      dispatch(exitGuestMode());
+      navigate('/login');
+    } else {
+      dispatch(logout());
+      navigate('/login');
+    }
   };
 
   const drawerWidth = sidebarOpen ? DRAWER_WIDTH : MINI_WIDTH;
@@ -84,7 +114,7 @@ const MainLayout = () => {
             <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <MedicalServicesIcon sx={{ color: 'primary.contrastText', fontSize: 20 }} />
             </Box>
-            <Typography variant="h6" fontWeight={700} noWrap sx={{ fontFamily: '"Crimson Pro", Georgia, serif', fontSize: '1.3rem', color: 'text.primary' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, fontFamily: '"Crimson Pro", Georgia, serif', fontSize: '1.3rem', color: 'text.primary' }} noWrap>
               Vaidya Patient
             </Typography>
           </>
@@ -102,11 +132,37 @@ const MainLayout = () => {
         <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: 16, flexShrink: 0 }}>{user?.name?.charAt(0)}</Avatar>
         {sidebarOpen && (
           <Box sx={{ overflow: 'hidden' }}>
-            <Typography variant="subtitle2" fontWeight={700} noWrap>{user?.name || 'Patient'}</Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>Patient</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>{user?.name || 'Patient'}</Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>{isGuest ? 'Guest' : (user?.role?.name || 'Patient')}</Typography>
           </Box>
         )}
       </Box>
+
+      {/* Demo Mode badge for guests */}
+      {isGuest && sidebarOpen && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <Chip
+            icon={<InfoOutlinedIcon sx={{ fontSize: '0.9rem !important' }} />}
+            label="Demo Mode"
+            size="small"
+            sx={{
+              width: '100%',
+              justifyContent: 'flex-start',
+              bgcolor: 'rgba(200, 134, 42, 0.12)',
+              color: '#A66B20',
+              fontWeight: 600,
+              '& .MuiChip-icon': { color: '#C8862A' },
+            }}
+          />
+        </Box>
+      )}
+      {isGuest && !sidebarOpen && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', px: 1, pb: 0.5 }}>
+          <Tooltip title="Demo Mode" placement="right">
+            <InfoOutlinedIcon sx={{ fontSize: 18, color: '#C8862A' }} />
+          </Tooltip>
+        </Box>
+      )}
       <Divider />
 
       {/* Grouped navigation */}
@@ -118,28 +174,45 @@ const MainLayout = () => {
                 {group.label}
               </Typography>
             )}
-            {group.items.map((item) => (
-              <Tooltip key={item.text} title={!sidebarOpen ? item.text : ''} placement="right">
-                <ListItemButton
-                  onClick={() => { navigate(item.path); if (isMobile) setMobileOpen(false); }}
-                  selected={location.pathname === item.path}
-                  sx={{
-                    borderRadius: 2, mb: 0.5, minHeight: 48, px: sidebarOpen ? 2 : 1,
-                    justifyContent: sidebarOpen ? 'initial' : 'center',
-                    '&.Mui-selected': {
-                      bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(143,179,163,0.16)' : 'rgba(61,90,76,0.10)',
-                      // Non-color cue: bold text + warm amber left accent bar (not color alone).
-                      boxShadow: 'inset 3px 0 0 #C8862A',
-                      '& .MuiListItemIcon-root': { color: 'primary.main' },
-                      '& .MuiListItemText-primary': { color: 'primary.main', fontWeight: 700 },
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: sidebarOpen ? 40 : 0, justifyContent: 'center' }}>{item.icon}</ListItemIcon>
-                  {sidebarOpen && <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: 14 }} />}
-                </ListItemButton>
-              </Tooltip>
-            ))}
+            {group.items.map((item) => {
+              const isRestricted = isGuest && item.restricted;
+              return (
+                <Tooltip key={item.text} title={!sidebarOpen ? item.text : (isRestricted ? `${item.text} (requires account)` : '')} placement="right">
+                  <ListItemButton
+                    onClick={() => {
+                      if (isRestricted) {
+                        handleRestrictedClick(item);
+                      } else {
+                        navigate(item.path);
+                      }
+                      if (isMobile) setMobileOpen(false);
+                    }}
+                    selected={!isRestricted && location.pathname === item.path}
+                    sx={{
+                      borderRadius: 2, mb: 0.5, minHeight: 48, px: sidebarOpen ? 2 : 1,
+                      justifyContent: sidebarOpen ? 'initial' : 'center',
+                      opacity: isRestricted ? 0.6 : 1,
+                      '&.Mui-selected': {
+                        bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(143,179,163,0.16)' : 'rgba(61,90,76,0.10)',
+                        boxShadow: 'inset 3px 0 0 #C8862A',
+                        '& .MuiListItemIcon-root': { color: 'primary.main' },
+                        '& .MuiListItemText-primary': { color: 'primary.main', fontWeight: 700 },
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: sidebarOpen ? 40 : 0, justifyContent: 'center' }}>
+                      {isRestricted ? (
+                        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                          {item.icon}
+                          <LockIcon sx={{ position: 'absolute', bottom: -4, right: -4, fontSize: 12, color: '#C8862A' }} />
+                        </Box>
+                      ) : item.icon}
+                    </ListItemIcon>
+                    {sidebarOpen && <ListItemText primary={item.text} sx={{ '& .MuiListItemText-primary': { fontSize: 14 } }} />}
+                  </ListItemButton>
+                </Tooltip>
+              );
+            })}
           </Box>
         ))}
       </List>
@@ -185,8 +258,8 @@ const MainLayout = () => {
         <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
           <Toolbar>
             {isMobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon /></IconButton>}
-            <Typography variant="h6" color="text.primary" fontWeight={600} sx={{ flex: 1 }}>
-              {menuItems.find(i => i.path === location.pathname)?.text || 'Vaidya Patient'}
+            <Typography variant="h6" color="text.primary" sx={{ fontWeight: 600, flex: 1 }}>
+              {flatItems.find(i => i.path === location.pathname)?.text || 'Vaidya Patient'}
             </Typography>
 
             <IconButton onClick={() => dispatch(toggleDarkMode())} sx={{ mr: 1 }}>
@@ -199,13 +272,15 @@ const MainLayout = () => {
 
             <Menu anchorEl={userAnchor} open={Boolean(userAnchor)} onClose={() => setUserAnchor(null)}>
               <Box sx={{ px: 2, py: 1 }}>
-                <Typography variant="subtitle2" fontWeight={600}>{user?.name}</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{user?.name}</Typography>
                 <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
               </Box>
               <Divider />
               <MenuItem onClick={() => { setUserAnchor(null); navigate('/profile'); }}><PersonIcon sx={{ mr: 1, fontSize: 18 }} />Profile</MenuItem>
               <MenuItem onClick={() => { setUserAnchor(null); navigate('/settings'); }}><SettingsIcon sx={{ mr: 1, fontSize: 18 }} />Settings</MenuItem>
-              <MenuItem onClick={handleLogout}><LogoutIcon sx={{ mr: 1, fontSize: 18 }} />Logout</MenuItem>
+              <MenuItem onClick={handleLogout}>
+                {isGuest ? <><LoginIcon sx={{ mr: 1, fontSize: 18 }} />Exit Demo</> : <><LogoutIcon sx={{ mr: 1, fontSize: 18 }} />Logout</>}
+              </MenuItem>
             </Menu>
           </Toolbar>
         </AppBar>
@@ -215,6 +290,14 @@ const MainLayout = () => {
           <Footer />
         </Box>
       </Box>
+
+      {/* Restriction toast for guest */}
+      {restrictionToast && (
+        <RestrictionToast
+          message={restrictionToast}
+          onClose={() => setRestrictionToast(null)}
+        />
+      )}
     </Box>
   );
 };

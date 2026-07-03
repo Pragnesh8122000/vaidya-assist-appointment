@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch } from '../app/store';
 import { useNavigate, useLocation } from 'react-router-dom';
+import type { RootState } from '../app/store';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -34,6 +36,8 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import PageHeader from '../components/PageHeader';
+import RestrictionBlock from '../components/RestrictionBlock';
+import { GUEST_RESTRICTION_MESSAGES } from '../constants/guestData';
 import {
   getDoctors,
   getAvailableSlots,
@@ -46,20 +50,39 @@ import {
 
 const DOCTOR_SEARCH_DEBOUNCE_MS = 400;
 
-const formatTime12h = (hhmm) => {
+const formatTime12h = (hhmm: string): string => {
   if (!hhmm) return '';
   const d = dayjs(`2000-01-01 ${hhmm}`);
   return d.isValid() ? d.format('h:mm A') : hhmm;
 };
 
+const ReviewRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
+  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+    <Box sx={{ display: 'inline-flex', mt: 0.25 }}>{icon}</Box>
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography variant="body1" sx={{ fontWeight: 600, wordBreak: 'break-word' }}>{value}</Typography>
+    </Box>
+  </Box>
+);
+
 const BookAppointment = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { doctors, slots, slotsLoading, loading, error, dependents, dependentsLoading } = useSelector((state) => state.patient);
+  const { isGuest } = useSelector((state: RootState) => state.auth);
+
+  // Guest mode — show restriction block instead of booking form
+  if (isGuest) {
+    const messages = GUEST_RESTRICTION_MESSAGES['/book'] || GUEST_RESTRICTION_MESSAGES.default;
+    return <RestrictionBlock title={messages.title} body={messages.body} />;
+  }
+
+  // Real user booking form (original logic)
+  const { doctors, slots, slotsLoading, loading, error, dependents, dependentsLoading } = useSelector((state: RootState) => state.patient);
   const [form, setForm] = useState({
-    doctorId: '', date: null, time: '', reason: '',
-    bookedFor: { type: 'myself', dependentId: null, dependentName: '' },
+    doctorId: '', date: null as dayjs.Dayjs | null, time: '', reason: '',
+    bookedFor: { type: 'myself' as string, dependentId: null as string | null, dependentName: '' },
   });
   const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -67,18 +90,13 @@ const BookAppointment = () => {
   const [addDepOpen, setAddDepOpen] = useState(false);
   const [newDep, setNewDep] = useState({ name: '', relation: '', age: '', gender: 'Male', bloodGroup: '' });
 
-  // Load doctors (debounced search). Replaces the original mount-time fetch.
   useEffect(() => {
     const t = setTimeout(() => dispatch(getDoctors(search.trim())), DOCTOR_SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [search, dispatch]);
 
-  // Load saved dependents once, for the "booking for someone else" selector.
-  useEffect(() => {
-    dispatch(getDependents());
-  }, [dispatch]);
+  useEffect(() => { dispatch(getDependents()); }, [dispatch]);
 
-  // Load available slots whenever a doctor and date are both selected.
   useEffect(() => {
     if (form.doctorId && form.date) {
       dispatch(getAvailableSlots({ doctorId: form.doctorId, date: form.date.format('YYYY-MM-DD') }));
@@ -87,39 +105,36 @@ const BookAppointment = () => {
     }
   }, [form.doctorId, form.date, dispatch]);
 
-  // Preselect a doctor when arriving from a "Book Follow-Up" action (location.state.doctorId).
   useEffect(() => {
-    const preDoctorId = location.state?.doctorId;
-    if (preDoctorId && !form.doctorId && doctors.some((d) => d._id === preDoctorId)) {
+    const preDoctorId = (location.state as Record<string, string> | null)?.doctorId;
+    if (preDoctorId && !form.doctorId && doctors.some((d: Record<string, unknown>) => d._id === preDoctorId)) {
       setForm((prev) => ({ ...prev, doctorId: preDoctorId }));
     }
   }, [doctors, location.state, form.doctorId]);
 
-  const selectedDoctor = doctors.find((d) => d._id === form.doctorId);
+  const selectedDoctor = doctors.find((d: Record<string, unknown>) => d._id === form.doctorId) as Record<string, unknown> | undefined;
 
-  // Only render the slot grid that matches the current selection (guards against races).
-  const activeSlots =
-    slots && form.date &&
+  const activeSlots = slots && form.date &&
     slots.doctorId === form.doctorId &&
-    slots.date === form.date.format('YYYY-MM-DD')
-      ? slots.items
-      : null;
+    slots.date === form.date?.format('YYYY-MM-DD')
+    ? slots.items
+    : null;
 
-  const handleDoctorSelect = (doctorId) => {
+  const handleDoctorSelect = (doctorId: string) => {
     setForm((prev) => ({ ...prev, doctorId, time: '' }));
   };
 
-  const handleDateChange = (newValue) => {
+  const handleDateChange = (newValue: dayjs.Dayjs | null) => {
     setForm((prev) => ({ ...prev, date: newValue, time: '' }));
   };
 
-  const handleSlotSelect = (slot) => {
+  const handleSlotSelect = (slot: { time: string; available: boolean }) => {
     if (!slot.available) return;
     setForm((prev) => ({ ...prev, time: slot.time }));
   };
 
-  const handleBookingForChange = (_, type) => {
-    if (type === null) return; // don't allow unselecting
+  const handleBookingForChange = (_: React.MouseEvent<HTMLElement>, type: string) => {
+    if (type === null) return;
     setForm((prev) => ({
       ...prev,
       bookedFor: type === 'myself'
@@ -128,10 +143,10 @@ const BookAppointment = () => {
     }));
   };
 
-  const handleSelectDependent = (dep) => {
+  const handleSelectDependent = (dep: Record<string, unknown>) => {
     setForm((prev) => ({
       ...prev,
-      bookedFor: { type: 'dependent', dependentId: dep._id, dependentName: dep.name },
+      bookedFor: { type: 'dependent', dependentId: dep._id as string, dependentName: dep.name as string },
     }));
   };
 
@@ -153,9 +168,9 @@ const BookAppointment = () => {
         gender: newDep.gender,
         bloodGroup: newDep.bloodGroup || undefined,
       })).unwrap();
-      const created = list?.[list.length - 1];
+      const created = list?.[(list as unknown[]).length - 1];
       setAddDepOpen(false);
-      if (created) handleSelectDependent(created);
+      if (created) handleSelectDependent(created as Record<string, unknown>);
     } catch {
       // slice shows the error toast
     }
@@ -177,7 +192,7 @@ const BookAppointment = () => {
     return true;
   };
 
-  const handleReviewClick = (e) => {
+  const handleReviewClick = (e: React.FormEvent) => {
     e.preventDefault();
     dispatch(clearPatientError());
     if (validate()) setReviewOpen(true);
@@ -186,7 +201,7 @@ const BookAppointment = () => {
   const handleConfirmBooking = async () => {
     const payload = {
       doctorId: form.doctorId,
-      date: form.date.startOf('day').format('YYYY-MM-DD'),
+      date: form.date!.startOf('day').format('YYYY-MM-DD'),
       time: form.time,
       reason: form.reason.trim(),
       bookedFor: form.bookedFor.type === 'dependent'
@@ -199,15 +214,13 @@ const BookAppointment = () => {
       setReviewOpen(false);
       navigate('/appointments');
     } catch {
-      // Error toast + state.error are set by the slice; keep modal open so the user can retry.
+      // Error toast + state.error are set by the slice
     } finally {
       setSubmitting(false);
     }
   };
 
   const bookingForName = form.bookedFor.type === 'dependent' ? form.bookedFor.dependentName : 'Myself';
-
-  const doctorReady = form.doctorId && form.date;
   const formattedDate = form.date ? form.date.format('dddd, MMMM D, YYYY') : '';
 
   return (
@@ -221,14 +234,14 @@ const BookAppointment = () => {
       )}
 
       <Box sx={{ maxWidth: 720, mx: 'auto' }}>
-        {/* Step 0 — Who is this appointment for? (book-for-someone-else, audit #22) */}
+        {/* Step 0 — Who is this appointment for? */}
         <Card sx={{ mb: 3, boxShadow: (theme) => (theme.palette.mode === 'dark' ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(33,28,22,0.08)') }}>
           <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <Box sx={{ display: 'inline-flex', p: 0.75, borderRadius: '50%', bgcolor: 'rgba(61,90,76,0.10)', color: 'primary.main' }}>
                 <GroupIcon sx={{ fontSize: 20 }} />
               </Box>
-              <Typography variant="subtitle1" component="h2" fontWeight={700}>Who is this appointment for?</Typography>
+              <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>Who is this appointment for?</Typography>
             </Box>
 
             <ToggleButtonGroup
@@ -263,11 +276,11 @@ const BookAppointment = () => {
                   </Box>
                 ) : (
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
-                    {dependents.map((dep) => {
+                    {dependents.map((dep: Record<string, unknown>) => {
                       const selected = form.bookedFor.dependentId === dep._id;
                       return (
                         <Chip
-                          key={dep._id}
+                          key={dep._id as string}
                           label={`${dep.name} (${dep.relation})`}
                           onClick={() => handleSelectDependent(dep)}
                           color={selected ? 'primary' : 'default'}
@@ -299,7 +312,7 @@ const BookAppointment = () => {
               <Box sx={{ display: 'inline-flex', p: 0.75, borderRadius: '50%', bgcolor: 'rgba(61,90,76,0.10)', color: 'primary.main' }}>
                 <PersonIcon sx={{ fontSize: 20 }} />
               </Box>
-              <Typography variant="subtitle1" component="h2" fontWeight={700}>1. Choose your doctor</Typography>
+              <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>1. Choose your doctor</Typography>
             </Box>
 
             <TextField
@@ -326,10 +339,10 @@ const BookAppointment = () => {
               </Typography>
             ) : (
               <Grid container spacing={2}>
-                {doctors.map((doc) => {
+                {doctors.map((doc: Record<string, unknown>) => {
                   const selected = form.doctorId === doc._id;
                   return (
-                    <Grid size={{ xs: 12, sm: 6 }} key={doc._id}>
+                    <Grid size={{ xs: 12, sm: 6 }} key={doc._id as string}>
                       <Card
                         variant="outlined"
                         sx={{
@@ -339,20 +352,20 @@ const BookAppointment = () => {
                           transition: 'border-color 0.2s ease, background 0.2s ease',
                         }}
                       >
-                        <CardActionArea onClick={() => handleDoctorSelect(doc._id)} sx={{ p: 1.5 }}>
+                        <CardActionArea onClick={() => handleDoctorSelect(doc._id as string)} sx={{ p: 1.5 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             <Avatar sx={{ bgcolor: 'primary.main', width: 44, height: 44 }}>
-                              {doc.name?.charAt(0)?.toUpperCase() || 'D'}
+                              {(doc.name as string)?.charAt(0)?.toUpperCase() || 'D'}
                             </Avatar>
                             <Box sx={{ minWidth: 0, flex: 1 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography variant="body2" fontWeight={700} noWrap>Dr. {doc.name}</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>Dr. {doc.name as string}</Typography>
                                 {selected && <CheckCircleIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
                               </Box>
                               <Typography variant="caption" color="text.secondary" noWrap component="div">
-                                {doc.email}
-                                {doc.email && doc.phone ? ' · ' : ''}
-                                {doc.phone}
+                                {doc.email as string}
+                                {(doc.email as string) && (doc.phone as string) ? ' · ' : ''}
+                                {doc.phone as string}
                               </Typography>
                             </Box>
                           </Box>
@@ -373,7 +386,7 @@ const BookAppointment = () => {
               <Box sx={{ display: 'inline-flex', p: 0.75, borderRadius: '50%', bgcolor: 'rgba(61,90,76,0.10)', color: 'primary.main' }}>
                 <CalendarMonthIcon sx={{ fontSize: 20 }} />
               </Box>
-              <Typography variant="subtitle1" component="h2" fontWeight={700}>2. Pick a date and time</Typography>
+              <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>2. Pick a date and time</Typography>
             </Box>
 
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, textAlign: 'right' }}>
@@ -397,11 +410,11 @@ const BookAppointment = () => {
             />
 
             <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" fontWeight={600} sx={{ mb: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
                 Available time slots
               </Typography>
 
-              {!doctorReady ? (
+              {!form.doctorId || !form.date ? (
                 <Typography variant="body2" color="text.secondary">
                   Select a doctor and a date to see available times.
                 </Typography>
@@ -412,7 +425,7 @@ const BookAppointment = () => {
                 </Box>
               ) : activeSlots && activeSlots.length > 0 ? (
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {activeSlots.map((slot) => {
+                  {activeSlots.map((slot: { time: string; available: boolean }) => {
                     const selected = form.time === slot.time;
                     return (
                       <Chip
@@ -450,7 +463,7 @@ const BookAppointment = () => {
               <Box sx={{ display: 'inline-flex', p: 0.75, borderRadius: '50%', bgcolor: 'rgba(61,90,76,0.10)', color: 'primary.main' }}>
                 <StethoscopeIcon sx={{ fontSize: 20 }} />
               </Box>
-              <Typography variant="subtitle1" component="h2" fontWeight={700}>3. What do you need help with?</Typography>
+              <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700 }}>3. What do you need help with?</Typography>
             </Box>
             <Box component="form" onSubmit={handleReviewClick}>
               <TextField
@@ -483,7 +496,7 @@ const BookAppointment = () => {
         <DialogContent dividers>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <ReviewRow icon={<GroupIcon color="action" />} label="Booking for" value={bookingForName} />
-            <ReviewRow icon={<PersonIcon color="action" />} label="Doctor" value={selectedDoctor ? `Dr. ${selectedDoctor.name}` : '—'} />
+            <ReviewRow icon={<PersonIcon color="action" />} label="Doctor" value={selectedDoctor ? `Dr. ${selectedDoctor.name as string}` : '—'} />
             <ReviewRow icon={<CalendarMonthIcon color="action" />} label="Date" value={formattedDate || '—'} />
             <ReviewRow icon={<AccessTimeIcon color="action" />} label="Time" value={formatTime12h(form.time) || '—'} />
             <ReviewRow icon={<StethoscopeIcon color="action" />} label="Reason" value={form.reason?.trim() || '—'} />
@@ -502,7 +515,7 @@ const BookAppointment = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Add a new dependent (#22) */}
+      {/* Add a new dependent */}
       <Dialog open={addDepOpen} onClose={() => setAddDepOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontWeight: 700 }}>Add a new person</DialogTitle>
         <DialogContent dividers>
@@ -555,15 +568,5 @@ const BookAppointment = () => {
     </Box>
   );
 };
-
-const ReviewRow = ({ icon, label, value }) => (
-  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-    <Box sx={{ display: 'inline-flex', mt: 0.25 }}>{icon}</Box>
-    <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="body1" fontWeight={600} sx={{ wordBreak: 'break-word' }}>{value}</Typography>
-    </Box>
-  </Box>
-);
 
 export default BookAppointment;

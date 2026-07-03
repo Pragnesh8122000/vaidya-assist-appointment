@@ -15,3 +15,8 @@ const store = configureStore({
 });
 
 export default store;
+
+// Use the hand-crafted RootState from types/store.ts for full type safety
+// (the inferred type would be `unknown` for JS slices).
+export type { RootState } from '../types/store';
+export type AppDispatch = typeof store.dispatch;

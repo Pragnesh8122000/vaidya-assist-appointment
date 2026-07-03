@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import type { AppDispatch } from '../app/store';
+import type { RootState } from '../app/store';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
@@ -16,47 +18,87 @@ import dayjs from 'dayjs';
 import { motion } from 'framer-motion';
 import PageHeader from '../components/PageHeader';
 import { getAppointments, getPatientProfile } from '../features/patientAppointmentSlice';
+import { GUEST_DASHBOARD_STATS } from '../constants/guestData';
+import RestrictionToast from '../components/RestrictionToast';
+
+interface StatItem {
+  label: string;
+  value: string;
+  subtext: string;
+  action: string;
+  icon: React.ReactElement;
+  path: string;
+}
 
 const Dashboard = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
-  const { appointments, profile } = useSelector((state) => state.patient);
+  const { user, isGuest } = useSelector((state: RootState) => state.auth);
+  const { appointments, profile } = useSelector((state: RootState) => state.patient);
+  const [restrictionToast, setRestrictionToast] = useState<string | null>(null);
 
   useEffect(() => {
-    dispatch(getPatientProfile());
-    dispatch(getAppointments({}));
-  }, [dispatch]);
+    // Guests never trigger API calls — data comes from constants.
+    if (!isGuest) {
+      dispatch(getPatientProfile());
+      dispatch(getAppointments({}));
+    }
+  }, [dispatch, isGuest]);
 
-  const stats = useMemo(() => {
+  const stats = useMemo<StatItem[]>(() => {
+    if (isGuest) {
+      const gs = GUEST_DASHBOARD_STATS;
+      return [
+        {
+          label: 'Next Appointment',
+          value: 'Jul 15, 2026',
+          subtext: `with ${gs.nextAppointment.doctor} at 10:30 AM`,
+          action: 'View Details',
+          icon: <CalendarMonthIcon />,
+          path: '/appointments',
+        },
+        {
+          label: 'Past Visits',
+          value: gs.completedCount.toString(),
+          subtext: 'visits recorded',
+          action: 'View Details',
+          icon: <HistoryIcon />,
+          path: '/appointments',
+        },
+        {
+          label: 'Profile Status',
+          value: 'Demo Mode',
+          subtext: 'You are exploring in demo mode',
+          action: 'View Details',
+          icon: <PersonIcon />,
+          path: '/profile',
+        },
+      ];
+    }
+
+    // Real user stats (original logic)
     const today = dayjs().startOf('day');
-
-    const upcoming = appointments
-      .filter((apt) => !['Cancelled', 'Completed'].includes(apt.status)
-        && dayjs(apt.date).startOf('day').isAfter(today.clone().subtract(1, 'day')))
-      .sort((a, b) => {
-        const dateDiff = dayjs(a.date).diff(dayjs(b.date), 'day');
+    const upcoming = (appointments as Array<Record<string, unknown>>)
+      .filter((apt: Record<string, unknown>) => !['Cancelled', 'Completed'].includes(apt.status as string)
+        && dayjs(apt.date as string).startOf('day').isAfter(today.clone().subtract(1, 'day')))
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const dateDiff = dayjs(a.date as string).diff(dayjs(b.date as string), 'day');
         if (dateDiff !== 0) return dateDiff;
-        return (a.time || '').localeCompare(b.time || '');
+        return String(a.time || '').localeCompare(String(b.time || ''));
       });
 
-    const next = upcoming[0];
-
-    const completedCount = appointments.filter((apt) => apt.status === 'Completed').length;
-
-    const requiredFields = ['name', 'email', 'phone'];
-    const filledFields = requiredFields.filter((key) => profile?.[key]).length;
+    const next = upcoming[0] as Record<string, unknown> | undefined;
+    const completedCount = (appointments as Array<Record<string, unknown>>).filter((apt: Record<string, unknown>) => apt.status === 'Completed').length;
+    const requiredFields: string[] = ['name', 'email', 'phone'];
+    const profileRec = profile as Record<string, unknown> | null;
+    const filledFields = requiredFields.filter((key) => profileRec?.[key]).length;
     const profileComplete = filledFields === requiredFields.length;
 
     return [
       {
         label: 'Next Appointment',
-        value: next
-          ? `${dayjs(next.date).format('MMM D, YYYY')}`
-          : 'No appointments yet',
-        subtext: next
-          ? `with ${next.doctor?.name || 'your doctor'} at ${next.time}`
-          : 'Would you like to book one?',
+        value: next ? `${dayjs(next.date as string).format('MMM D, YYYY')}` : 'No appointments yet',
+        subtext: next ? `with ${(next.doctor as Record<string, unknown>)?.name || 'your doctor'} at ${next.time}` : 'Would you like to book one?',
         action: next ? 'View Details' : 'Book Now',
         icon: <CalendarMonthIcon />,
         path: next ? '/appointments' : '/book',
@@ -80,13 +122,21 @@ const Dashboard = () => {
         path: '/profile',
       },
     ];
-  }, [appointments, profile]);
+  }, [appointments, profile, isGuest]);
+
+  const handleBookClick = () => {
+    if (isGuest) {
+      setRestrictionToast('Please create an account to book appointments.');
+      return;
+    }
+    navigate('/book');
+  };
 
   return (
     <Box sx={{ pt: 2, pb: 6, px: { xs: 2, sm: 3 } }}>
       <PageHeader
-        title={`Welcome, ${user?.name || 'Patient'}!`}
-        subtitle="Book your appointments and view your medical records."
+        title={isGuest ? 'Welcome, Guest!' : `Welcome, ${user?.name || 'Patient'}!`}
+        subtitle={isGuest ? 'You are exploring the portal in demo mode.' : 'Book your appointments and view your medical records.'}
       />
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -97,8 +147,6 @@ const Dashboard = () => {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                // Signature: the Next Appointment card reads as a prescription
-                // slip with a warm amber left stripe.
                 borderLeft: stat.label === 'Next Appointment' ? '4px solid #C8862A' : undefined,
               }}>
                 <CardActionArea
@@ -125,13 +173,13 @@ const Dashboard = () => {
                         bgcolor: 'rgba(61, 90, 76, 0.10)',
                       }}
                     >
-                      {React.cloneElement(stat.icon, { sx: { fontSize: 24 } })}
+                      {stat.icon}
                     </Box>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                         {stat.label}
                       </Typography>
-                      <Typography variant="h6" fontWeight={700} color="text.primary" sx={{ lineHeight: 1.25 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }} color="text.primary">
                         {stat.value}
                       </Typography>
                     </Box>
@@ -182,18 +230,20 @@ const Dashboard = () => {
         <Box sx={{ maxWidth: { sm: '100%', md: '60%' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
             <EventAvailableIcon sx={{ fontSize: 28, color: '#C8862A' }} />
-            <Typography variant="h5" fontWeight={700}>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
               Ready for your next checkup?
             </Typography>
           </Box>
           <Typography variant="body1" sx={{ opacity: 0.95, maxWidth: 520 }}>
-            Quickly book a slot with your doctor without waiting in queues. We'll send you a reminder before your visit.
+            {isGuest
+              ? 'This is a demo of the appointment booking feature. Create an account to book real appointments.'
+              : 'Quickly book a slot with your doctor without waiting in queues. We\'ll send you a reminder before your visit.'}
           </Typography>
         </Box>
         <Button
           variant="contained"
           size="large"
-          onClick={() => navigate('/book')}
+          onClick={handleBookClick}
           sx={{
             bgcolor: '#fff',
             color: '#3D5A4C',
@@ -207,6 +257,14 @@ const Dashboard = () => {
           Book Appointment Now
         </Button>
       </Box>
+
+      {/* Restriction toast for guest */}
+      {restrictionToast && (
+        <RestrictionToast
+          message={restrictionToast}
+          onClose={() => setRestrictionToast(null)}
+        />
+      )}
     </Box>
   );
 };
