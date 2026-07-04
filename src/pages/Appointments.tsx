@@ -64,7 +64,7 @@ const Appointments = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <MedicalServicesIcon sx={{ fontSize: 20, color: 'primary.main' }} />
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-                Dr. {apt.doctor?.name || 'Unknown'}
+                {apt.doctor?.name || 'Unknown'}
               </Typography>
               <Chip label={apt.status} size="small" color={statusColor} sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
             </Box>

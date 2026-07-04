@@ -33,10 +33,12 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
+import Button from '@mui/material/Button';
 import LockIcon from '@mui/icons-material/Lock';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { logout, exitGuestMode } from '../features/authSlice';
 import { toggleSidebar, toggleDarkMode } from '../features/uiSlice';
+import { openPatientChat } from '../features/patientChatSlice';
 import Footer from '../components/Footer';
 import RestrictionToast from '../components/RestrictionToast';
 const DRAWER_WIDTH = 260;
@@ -265,6 +267,16 @@ const MainLayout = () => {
             <IconButton onClick={() => dispatch(toggleDarkMode())} sx={{ mr: 1 }}>
               {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
             </IconButton>
+
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<MedicalServicesIcon />}
+              onClick={() => dispatch(openPatientChat())}
+              sx={{ mr: 1, textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 1.5 }}
+            >
+              Assistant
+            </Button>
 
             <IconButton onClick={(e) => setUserAnchor(e.currentTarget)}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: 14 }}>{user?.name?.charAt(0)}</Avatar>

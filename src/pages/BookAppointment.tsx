@@ -359,7 +359,7 @@ const BookAppointment = () => {
                             </Avatar>
                             <Box sx={{ minWidth: 0, flex: 1 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>Dr. {doc.name as string}</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>{doc.name as string}</Typography>
                                 {selected && <CheckCircleIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
                               </Box>
                               <Typography variant="caption" color="text.secondary" noWrap component="div">
@@ -496,7 +496,7 @@ const BookAppointment = () => {
         <DialogContent dividers>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <ReviewRow icon={<GroupIcon color="action" />} label="Booking for" value={bookingForName} />
-            <ReviewRow icon={<PersonIcon color="action" />} label="Doctor" value={selectedDoctor ? `Dr. ${selectedDoctor.name as string}` : '—'} />
+            <ReviewRow icon={<PersonIcon color="action" />} label="Doctor" value={selectedDoctor ? `${selectedDoctor.name as string}` : '—'} />
             <ReviewRow icon={<CalendarMonthIcon color="action" />} label="Date" value={formattedDate || '—'} />
             <ReviewRow icon={<AccessTimeIcon color="action" />} label="Time" value={formatTime12h(form.time) || '—'} />
             <ReviewRow icon={<StethoscopeIcon color="action" />} label="Reason" value={form.reason?.trim() || '—'} />
