@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch } from '../app/store';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -30,6 +30,8 @@ const Login = () => {
   const { loading, error } = useSelector((state: RootState) => state.auth);
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('reason') === 'session_expired';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,6 +167,12 @@ const Login = () => {
           {error && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => dispatch(clearError())}>
               {String(error)}
+            </Alert>
+          )}
+
+          {sessionExpired && !error && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Your session has expired. Please sign in again.
             </Alert>
           )}
 

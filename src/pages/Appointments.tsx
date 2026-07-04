@@ -8,10 +8,13 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import PersonIcon from '@mui/icons-material/Person';
 import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import dayjs from 'dayjs';
 import PageHeader from '../components/PageHeader';
 import { getAppointments } from '../features/patientAppointmentSlice';
@@ -34,7 +37,7 @@ const statusColorMap: Record<string, 'success' | 'warning' | 'error' | 'default'
 const Appointments = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isGuest } = useSelector((state: RootState) => state.auth);
-  const { appointments: realAppointments, loading } = useSelector((state: RootState) => state.patient);
+  const { appointments: realAppointments, loading, error } = useSelector((state: RootState) => state.patient);
 
   const appointments: GuestAppointment[] = isGuest ? GUEST_APPOINTMENTS : (realAppointments as unknown) as GuestAppointment[];
 
@@ -51,6 +54,26 @@ const Appointments = () => {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
         <Typography color="text.secondary">Loading appointments…</Typography>
+      </Box>
+    );
+  }
+
+  // Error state with retry — surfaced when the appointments fetch fails. Audit FE-2.
+  if (!isGuest && error && !loading) {
+    return (
+      <Box sx={{ pt: 2, pb: 6, px: { xs: 1, sm: 2 } }}>
+        <PageHeader title="My Appointments" icon={<CalendarMonthIcon />} />
+        <Alert
+          severity="error"
+          sx={{ mb: 2, maxWidth: 720, mx: 'auto' }}
+          action={
+            <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={() => dispatch(getAppointments({}))}>
+              Retry
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
       </Box>
     );
   }

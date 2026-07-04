@@ -72,13 +72,8 @@ const BookAppointment = () => {
   const location = useLocation();
   const { isGuest } = useSelector((state: RootState) => state.auth);
 
-  // Guest mode — show restriction block instead of booking form
-  if (isGuest) {
-    const messages = GUEST_RESTRICTION_MESSAGES['/book'] || GUEST_RESTRICTION_MESSAGES.default;
-    return <RestrictionBlock title={messages.title} body={messages.body} />;
-  }
-
-  // Real user booking form (original logic)
+  // All hooks are called unconditionally, before any early return, so the Rules
+  // of Hooks hold regardless of guest mode. Audit FE-3.
   const { doctors, slots, slotsLoading, loading, error, dependents, dependentsLoading } = useSelector((state: RootState) => state.patient);
   const [form, setForm] = useState({
     doctorId: '', date: null as dayjs.Dayjs | null, time: '', reason: '',
@@ -91,19 +86,22 @@ const BookAppointment = () => {
   const [newDep, setNewDep] = useState({ name: '', relation: '', age: '', gender: 'Male', bloodGroup: '' });
 
   useEffect(() => {
+    // Skip API calls in guest mode — the restriction block is shown instead.
+    if (isGuest) return undefined;
     const t = setTimeout(() => dispatch(getDoctors(search.trim())), DOCTOR_SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [search, dispatch]);
+  }, [search, dispatch, isGuest]);
 
-  useEffect(() => { dispatch(getDependents()); }, [dispatch]);
+  useEffect(() => { if (!isGuest) dispatch(getDependents()); }, [dispatch, isGuest]);
 
   useEffect(() => {
+    if (isGuest) return;
     if (form.doctorId && form.date) {
       dispatch(getAvailableSlots({ doctorId: form.doctorId, date: form.date.format('YYYY-MM-DD') }));
     } else {
       dispatch(clearSlots());
     }
-  }, [form.doctorId, form.date, dispatch]);
+  }, [form.doctorId, form.date, dispatch, isGuest]);
 
   useEffect(() => {
     const preDoctorId = (location.state as Record<string, string> | null)?.doctorId;
@@ -111,6 +109,12 @@ const BookAppointment = () => {
       setForm((prev) => ({ ...prev, doctorId: preDoctorId }));
     }
   }, [doctors, location.state, form.doctorId]);
+
+  // Guest mode — show restriction block instead of booking form.
+  if (isGuest) {
+    const messages = GUEST_RESTRICTION_MESSAGES['/book'] || GUEST_RESTRICTION_MESSAGES.default;
+    return <RestrictionBlock title={messages.title} body={messages.body} />;
+  }
 
   const selectedDoctor = doctors.find((d: Record<string, unknown>) => d._id === form.doctorId) as Record<string, unknown> | undefined;
 

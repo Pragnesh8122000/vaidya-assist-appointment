@@ -16,17 +16,18 @@ patientAgentApi.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// Response interceptor - handle token refresh (same pattern as main API)
+// Response interceptor - handle token refresh and session expiry. Audit FE-1.
+// Same pattern as the main API client (src/api/axios.js): a non-TOKEN_EXPIRED 401
+// from the agent service (e.g. patientAuthMiddleware rejecting an invalid profile)
+// also means the session is no longer valid, so clear it and force re-authentication.
 patientAgentApi.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const status = error.response?.status;
+    const code = error.response?.data?.code;
 
-    if (
-      error.response?.status === 401 &&
-      error.response?.data?.code === 'TOKEN_EXPIRED' &&
-      !originalRequest._retry
-    ) {
+    if (status === 401 && code === 'TOKEN_EXPIRED' && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem('refreshToken');
@@ -39,14 +40,29 @@ patientAgentApi.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${data.data.token}`;
         return patientAgentApi(originalRequest);
       } catch (err) {
-        localStorage.clear();
-        window.location.href = '/login';
+        clearSessionAndRedirect();
         return Promise.reject(err);
       }
     }
+
+    if (status === 401 && !isAuthEndpoint(originalRequest?.url)) {
+      clearSessionAndRedirect();
+    }
+
     return Promise.reject(error);
   },
 );
+
+function isAuthEndpoint(url) {
+  return typeof url === 'string' && /\/auth\/(login|register|register-patient|refresh-token)/.test(url);
+}
+
+function clearSessionAndRedirect() {
+  localStorage.clear();
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login?reason=session_expired';
+  }
+}
 
 /**
  * Send a message to the Vaidya patient agent.
