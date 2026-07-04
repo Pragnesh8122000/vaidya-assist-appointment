@@ -279,7 +279,7 @@ const MainLayout = () => {
             </Button>
 
             <IconButton onClick={(e) => setUserAnchor(e.currentTarget)}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: 14 }}>{user?.name?.charAt(0)}</Avatar>
+              <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: 14 }}>{user?.name?.charAt(0)}</Avatar>
             </IconButton>
 
             <Menu anchorEl={userAnchor} open={Boolean(userAnchor)} onClose={() => setUserAnchor(null)}>

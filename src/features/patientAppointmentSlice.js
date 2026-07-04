@@ -60,8 +60,9 @@ export const getAppointments = createAsyncThunk('patient:getAppointments', async
   }
 });
 
-export const cancelAppointment = createAsyncThunk('patient:cancelAppointment', async (id, { rejectWithValue }) => {
+export const cancelAppointment = createAsyncThunk('patient:cancelAppointment', async (appointment, { rejectWithValue }) => {
   try {
+    const id = appointment.displayId || appointment._id;
     const { data } = await api.put(`/patient-portal/appointments/${id}/cancel`);
     return data.data;
   } catch (error) {
@@ -69,8 +70,9 @@ export const cancelAppointment = createAsyncThunk('patient:cancelAppointment', a
   }
 });
 
-export const rescheduleAppointment = createAsyncThunk('patient:rescheduleAppointment', async ({ id, date, time }, { rejectWithValue }) => {
+export const rescheduleAppointment = createAsyncThunk('patient:rescheduleAppointment', async ({ appointment, date, time }, { rejectWithValue }) => {
   try {
+    const id = appointment.displayId || appointment._id;
     const { data } = await api.patch(`/patient-portal/appointments/${id}/reschedule`, { date, time });
     return data.data;
   } catch (error) {
@@ -80,8 +82,11 @@ export const rescheduleAppointment = createAsyncThunk('patient:rescheduleAppoint
 
 // Fetch the prescription for a completed visit (structured medications, with a
 // scanned-file fallback). See audit #23.
-export const getPrescription = createAsyncThunk('patient:getPrescription', async (id, { rejectWithValue }) => {
+export const getPrescription = createAsyncThunk('patient:getPrescription', async (appointmentOrId, { rejectWithValue }) => {
   try {
+    const id = typeof appointmentOrId === 'object'
+      ? (appointmentOrId.displayId || appointmentOrId._id)
+      : appointmentOrId;
     const { data } = await api.get(`/patient-portal/appointments/${id}/prescription`);
     return data.data; // { appointment, prescription, files }
   } catch (error) {
@@ -185,13 +190,15 @@ const patientSlice = createSlice({
         toast.success('Appointment booked successfully');
       })
       .addCase(cancelAppointment.pending, (state, action) => {
-        state.actionLoadingId = action.meta.arg;
+        const apt = action.meta.arg;
+        state.actionLoadingId = apt?.displayId || apt?._id || apt;
       })
       .addCase(cancelAppointment.fulfilled, (state, action) => {
         state.actionLoadingId = null;
         const updated = action.payload;
+        const key = updated.displayId || updated._id;
         state.appointments = state.appointments.map((apt) =>
-          apt._id === updated._id ? updated : apt
+          (apt.displayId || apt._id) === key ? updated : apt
         );
         toast.success('Appointment cancelled');
       })
@@ -199,13 +206,15 @@ const patientSlice = createSlice({
         state.actionLoadingId = null;
       })
       .addCase(rescheduleAppointment.pending, (state, action) => {
-        state.actionLoadingId = action.meta.arg.id;
+        const apt = action.meta.arg.appointment;
+        state.actionLoadingId = apt?.displayId || apt?._id || action.meta.arg.id;
       })
       .addCase(rescheduleAppointment.fulfilled, (state, action) => {
         state.actionLoadingId = null;
         const updated = action.payload;
+        const key = updated.displayId || updated._id;
         state.appointments = state.appointments.map((apt) =>
-          apt._id === updated._id ? updated : apt
+          (apt.displayId || apt._id) === key ? updated : apt
         );
         toast.success('Appointment rescheduled');
       })

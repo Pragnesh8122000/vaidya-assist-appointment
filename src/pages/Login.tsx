@@ -20,7 +20,6 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ExploreIcon from '@mui/icons-material/Explore';
-import { toast } from 'react-toastify';
 import { login, clearError, enterGuestMode } from '../features/authSlice';
 import type { RootState } from '../app/store';
 
@@ -38,7 +37,6 @@ const Login = () => {
     dispatch(clearError());
     try {
       await dispatch(login(form)).unwrap();
-      toast.success('Welcome back!');
       navigate('/');
     } catch {
       // Error toast is shown by the slice
