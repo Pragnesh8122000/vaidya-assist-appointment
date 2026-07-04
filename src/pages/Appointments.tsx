@@ -113,6 +113,14 @@ const Appointments = () => {
                 {apt.reason}
               </Box>
             </Box>
+            {apt.displayId && (
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', mt: 0.75, fontFamily: 'monospace', color: 'text.disabled' }}
+              >
+                {apt.displayId}
+              </Typography>
+            )}
           </Box>
           {isGuest ? (
             <Tooltip title="Sign in to use this feature">

@@ -77,6 +77,7 @@ export interface Appointment {
   notes?: string;
   bookedFor?: BookedFor;
   prescription?: unknown;
+  displayId?: string;
 }
 
 /**
