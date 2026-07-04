@@ -76,19 +76,20 @@ const Dashboard = () => {
       ];
     }
 
-    // Real user stats (original logic)
+    // Real user stats (original logic). FE-10: appointments is typed
+    // `Appointment[]` via the shared store types, so no casts are needed.
     const today = dayjs().startOf('day');
-    const upcoming = (appointments as Array<Record<string, unknown>>)
-      .filter((apt: Record<string, unknown>) => !['Cancelled', 'Completed'].includes(apt.status as string)
-        && dayjs(apt.date as string).startOf('day').isAfter(today.clone().subtract(1, 'day')))
-      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
-        const dateDiff = dayjs(a.date as string).diff(dayjs(b.date as string), 'day');
+    const upcoming = appointments
+      .filter((apt) => !['Cancelled', 'Completed'].includes(apt.status)
+        && dayjs(apt.date).startOf('day').isAfter(today.clone().subtract(1, 'day')))
+      .sort((a, b) => {
+        const dateDiff = dayjs(a.date).diff(dayjs(b.date), 'day');
         if (dateDiff !== 0) return dateDiff;
         return String(a.time || '').localeCompare(String(b.time || ''));
       });
 
-    const next = upcoming[0] as Record<string, unknown> | undefined;
-    const completedCount = (appointments as Array<Record<string, unknown>>).filter((apt: Record<string, unknown>) => apt.status === 'Completed').length;
+    const next = upcoming[0];
+    const completedCount = appointments.filter((apt) => apt.status === 'Completed').length;
     const requiredFields: string[] = ['name', 'email', 'phone'];
     const profileRec = profile as Record<string, unknown> | null;
     const filledFields = requiredFields.filter((key) => profileRec?.[key]).length;
@@ -97,8 +98,8 @@ const Dashboard = () => {
     return [
       {
         label: 'Next Appointment',
-        value: next ? `${dayjs(next.date as string).format('MMM D, YYYY')}` : 'No appointments yet',
-        subtext: next ? `with ${(next.doctor as Record<string, unknown>)?.name || 'your doctor'} at ${next.time}` : 'Would you like to book one?',
+        value: next ? `${dayjs(next.date).format('MMM D, YYYY')}` : 'No appointments yet',
+        subtext: next ? `with ${next.doctor?.name || 'your doctor'} at ${next.time}` : 'Would you like to book one?',
         action: next ? 'View Details' : 'Book Now',
         icon: <CalendarMonthIcon />,
         path: next ? '/appointments' : '/book',

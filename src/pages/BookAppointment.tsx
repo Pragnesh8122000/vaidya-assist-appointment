@@ -47,6 +47,7 @@ import {
   clearPatientError,
   clearSlots,
 } from '../features/patientAppointmentSlice';
+import type { BookAppointmentNavState, Doctor, Dependent } from '../types/store';
 
 const DOCTOR_SEARCH_DEBOUNCE_MS = 400;
 
@@ -104,8 +105,9 @@ const BookAppointment = () => {
   }, [form.doctorId, form.date, dispatch, isGuest]);
 
   useEffect(() => {
-    const preDoctorId = (location.state as Record<string, string> | null)?.doctorId;
-    if (preDoctorId && !form.doctorId && doctors.some((d: Record<string, unknown>) => d._id === preDoctorId)) {
+    // FE-12: navigation state is typed via `BookAppointmentNavState`.
+    const preDoctorId = (location.state as BookAppointmentNavState | null)?.doctorId;
+    if (preDoctorId && !form.doctorId && doctors.some((d) => d._id === preDoctorId)) {
       setForm((prev) => ({ ...prev, doctorId: preDoctorId }));
     }
   }, [doctors, location.state, form.doctorId]);
@@ -116,7 +118,8 @@ const BookAppointment = () => {
     return <RestrictionBlock title={messages.title} body={messages.body} />;
   }
 
-  const selectedDoctor = doctors.find((d: Record<string, unknown>) => d._id === form.doctorId) as Record<string, unknown> | undefined;
+  // FE-10: doctors are typed `Doctor[]` from the store — no more `as string` casts.
+  const selectedDoctor = doctors.find((d: Doctor) => d._id === form.doctorId);
 
   const activeSlots = slots && form.date &&
     slots.doctorId === form.doctorId &&
@@ -147,10 +150,10 @@ const BookAppointment = () => {
     }));
   };
 
-  const handleSelectDependent = (dep: Record<string, unknown>) => {
+  const handleSelectDependent = (dep: Dependent) => {
     setForm((prev) => ({
       ...prev,
-      bookedFor: { type: 'dependent', dependentId: dep._id as string, dependentName: dep.name as string },
+      bookedFor: { type: 'dependent', dependentId: dep._id, dependentName: dep.name },
     }));
   };
 
@@ -172,9 +175,9 @@ const BookAppointment = () => {
         gender: newDep.gender,
         bloodGroup: newDep.bloodGroup || undefined,
       })).unwrap();
-      const created = list?.[(list as unknown[]).length - 1];
+      const created = list?.[(list as unknown[]).length - 1] as Dependent | undefined;
       setAddDepOpen(false);
-      if (created) handleSelectDependent(created as Record<string, unknown>);
+      if (created) handleSelectDependent(created);
     } catch {
       // slice shows the error toast
     }
@@ -216,7 +219,9 @@ const BookAppointment = () => {
     try {
       await dispatch(bookAppointment(payload)).unwrap();
       setReviewOpen(false);
-      navigate('/appointments');
+      // FE-11: replace history so the browser back button does not return to
+      // /book with a stale form (which would risk accidental re-booking).
+      navigate('/appointments', { replace: true });
     } catch {
       // Error toast + state.error are set by the slice
     } finally {
@@ -280,11 +285,11 @@ const BookAppointment = () => {
                   </Box>
                 ) : (
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
-                    {dependents.map((dep: Record<string, unknown>) => {
+                    {dependents.map((dep: Dependent) => {
                       const selected = form.bookedFor.dependentId === dep._id;
                       return (
                         <Chip
-                          key={dep._id as string}
+                          key={dep._id}
                           label={`${dep.name} (${dep.relation})`}
                           onClick={() => handleSelectDependent(dep)}
                           color={selected ? 'primary' : 'default'}
@@ -343,10 +348,10 @@ const BookAppointment = () => {
               </Typography>
             ) : (
               <Grid container spacing={2}>
-                {doctors.map((doc: Record<string, unknown>) => {
+                {doctors.map((doc: Doctor) => {
                   const selected = form.doctorId === doc._id;
                   return (
-                    <Grid size={{ xs: 12, sm: 6 }} key={doc._id as string}>
+                    <Grid size={{ xs: 12, sm: 6 }} key={doc._id}>
                       <Card
                         variant="outlined"
                         sx={{
@@ -356,20 +361,20 @@ const BookAppointment = () => {
                           transition: 'border-color 0.2s ease, background 0.2s ease',
                         }}
                       >
-                        <CardActionArea onClick={() => handleDoctorSelect(doc._id as string)} sx={{ p: 1.5 }}>
+                        <CardActionArea onClick={() => handleDoctorSelect(doc._id)} sx={{ p: 1.5 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             <Avatar sx={{ bgcolor: 'primary.main', width: 44, height: 44 }}>
-                              {(doc.name as string)?.charAt(0)?.toUpperCase() || 'D'}
+                              {doc.name?.charAt(0)?.toUpperCase() || 'D'}
                             </Avatar>
                             <Box sx={{ minWidth: 0, flex: 1 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>{doc.name as string}</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>{doc.name}</Typography>
                                 {selected && <CheckCircleIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
                               </Box>
                               <Typography variant="caption" color="text.secondary" noWrap component="div">
-                                {doc.email as string}
-                                {(doc.email as string) && (doc.phone as string) ? ' · ' : ''}
-                                {doc.phone as string}
+                                {doc.email}
+                                {doc.email && doc.phone ? ' · ' : ''}
+                                {doc.phone}
                               </Typography>
                             </Box>
                           </Box>

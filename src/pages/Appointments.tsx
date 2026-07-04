@@ -19,7 +19,7 @@ import dayjs from 'dayjs';
 import PageHeader from '../components/PageHeader';
 import { getAppointments } from '../features/patientAppointmentSlice';
 import { GUEST_APPOINTMENTS } from '../constants/guestData';
-import type { GuestAppointment } from '../constants/guestData';
+import type { Appointment, AppointmentStatus } from '../types/store';
 
 const formatTime12h = (hhmm: string): string => {
   if (!hhmm) return '';
@@ -27,11 +27,14 @@ const formatTime12h = (hhmm: string): string => {
   return d.isValid() ? d.format('h:mm A') : hhmm;
 };
 
-const statusColorMap: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
+// FE-4 / §3.2: 'Confirmed' is a real backend status (OQ#3=Option B). The map
+// covers every value in the `AppointmentStatus` union plus a fallback.
+const statusColorMap: Record<AppointmentStatus, 'success' | 'warning' | 'error' | 'default' | 'info'> = {
   Waiting: 'warning',
-  Confirmed: 'success',
+  Confirmed: 'info',
+  'In Consultation': 'info',
+  Completed: 'success',
   Cancelled: 'error',
-  Completed: 'default',
 };
 
 const Appointments = () => {
@@ -39,7 +42,12 @@ const Appointments = () => {
   const { isGuest } = useSelector((state: RootState) => state.auth);
   const { appointments: realAppointments, loading, error } = useSelector((state: RootState) => state.patient);
 
-  const appointments: GuestAppointment[] = isGuest ? GUEST_APPOINTMENTS : (realAppointments as unknown) as GuestAppointment[];
+  // FE-8: cast once to the canonical `Appointment[]` interface instead of
+  // double-casting through `GuestAppointment`. The guest list is structurally
+  // compatible, so it flows through the same render path.
+  const appointments: Appointment[] = isGuest
+    ? (GUEST_APPOINTMENTS as Appointment[])
+    : realAppointments;
 
   useEffect(() => {
     if (!isGuest) {
@@ -78,7 +86,7 @@ const Appointments = () => {
     );
   }
 
-  const renderCard = (apt: GuestAppointment, _index: number) => {
+  const renderCard = (apt: Appointment, _index: number) => {
     const statusColor = statusColorMap[apt.status] ?? 'default';
     return (
       <Card key={apt._id} sx={{ mb: 2, borderLeft: '4px solid', borderColor: apt.status === 'Waiting' ? '#C8862A' : apt.status === 'Completed' ? 'grey.400' : apt.status === 'Cancelled' ? 'error.main' : 'primary.main' }}>
