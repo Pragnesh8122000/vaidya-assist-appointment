@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { AppDispatch } from '../app/store';
 import type { RootState } from '../app/store';
@@ -10,22 +10,28 @@ import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import TextField from '@mui/material/TextField';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import PersonIcon from '@mui/icons-material/Person';
 import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CancelIcon from '@mui/icons-material/Cancel';
+import EditCalendarIcon from '@mui/icons-material/EditCalendar';
 import dayjs from 'dayjs';
 import PageHeader from '../components/PageHeader';
-import { getAppointments } from '../features/patientAppointmentSlice';
+import {
+  getAppointments,
+  cancelAppointment,
+  rescheduleAppointment,
+} from '../features/patientAppointmentSlice';
 import { GUEST_APPOINTMENTS } from '../constants/guestData';
+import { formatTime12h, formatDate } from '../utils/dateFormat';
 import type { Appointment, AppointmentStatus } from '../types/store';
-
-const formatTime12h = (hhmm: string): string => {
-  if (!hhmm) return '';
-  const d = dayjs(`2000-01-01 ${hhmm}`);
-  return d.isValid() ? d.format('h:mm A') : hhmm;
-};
 
 // FE-4 / §3.2: 'Confirmed' is a real backend status (OQ#3=Option B). The map
 // covers every value in the `AppointmentStatus` union plus a fallback.
@@ -37,10 +43,19 @@ const statusColorMap: Record<AppointmentStatus, 'success' | 'warning' | 'error' 
   Cancelled: 'error',
 };
 
+// UX-1: appointments in these statuses are still active and may be cancelled or
+// rescheduled by the patient. `Completed` and `Cancelled` are terminal.
+const isActive = (status: AppointmentStatus) => !['Cancelled', 'Completed'].includes(status);
+
 const Appointments = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { isGuest } = useSelector((state: RootState) => state.auth);
-  const { appointments: realAppointments, loading, error } = useSelector((state: RootState) => state.patient);
+  const {
+    appointments: realAppointments,
+    loading,
+    error,
+    actionLoadingId,
+  } = useSelector((state: RootState) => state.patient);
 
   // FE-8: cast once to the canonical `Appointment[]` interface instead of
   // double-casting through `GuestAppointment`. The guest list is structurally
@@ -55,10 +70,70 @@ const Appointments = () => {
     }
   }, [dispatch, isGuest]);
 
-  const upcoming = appointments.filter((apt) => !['Cancelled', 'Completed'].includes(apt.status));
+  const upcoming = appointments.filter((apt) => isActive(apt.status));
   const completed = appointments.filter((apt) => apt.status === 'Completed');
 
-  if (loading && !isGuest) {
+  // UX-1: cancel + reschedule dialog state.
+  const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null);
+  const [rescheduleForm, setRescheduleForm] = useState<{ date: string; time: string }>({
+    date: '',
+    time: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const appointmentId = (apt: Appointment) => apt.displayId || apt._id;
+
+  const handleCancelConfirm = async () => {
+    if (!cancelTarget) return;
+    const id = appointmentId(cancelTarget);
+    setSubmitting(true);
+    try {
+      await dispatch(cancelAppointment(id)).unwrap();
+      // The slice optimistically replaces the cancelled card, but refetch so the
+      // list is authoritative against the backend.
+      dispatch(getAppointments({}));
+      setCancelTarget(null);
+    } catch {
+      // slice surfaces the error toast + state.error
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openReschedule = (apt: Appointment) => {
+    setRescheduleTarget(apt);
+    // Pre-fill with the existing date/time so the patient can tweak one field.
+    setRescheduleForm({
+      date: dayjs(apt.date).format('YYYY-MM-DD'),
+      time: apt.time,
+    });
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!rescheduleTarget) return;
+    if (!rescheduleForm.date) return;
+    if (!rescheduleForm.time) return;
+    if (dayjs(rescheduleForm.date).startOf('day').isBefore(dayjs().startOf('day'))) return;
+    const id = appointmentId(rescheduleTarget);
+    setSubmitting(true);
+    try {
+      await dispatch(
+        rescheduleAppointment({ id, date: rescheduleForm.date, time: rescheduleForm.time }),
+      ).unwrap();
+      dispatch(getAppointments({}));
+      setRescheduleTarget(null);
+    } catch {
+      // slice surfaces the error toast + state.error
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Only show the full-page loading screen on the initial fetch (no data yet).
+  // Once we have appointments, cancel/reschedule's pending state must not hide
+  // the list — the per-card `actionLoadingId` handles in-flight button state.
+  if (loading && !isGuest && appointments.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
         <Typography color="text.secondary">Loading appointments…</Typography>
@@ -67,7 +142,7 @@ const Appointments = () => {
   }
 
   // Error state with retry — surfaced when the appointments fetch fails. Audit FE-2.
-  if (!isGuest && error && !loading) {
+  if (!isGuest && error && !loading && appointments.length === 0) {
     return (
       <Box sx={{ pt: 2, pb: 6, px: { xs: 1, sm: 2 } }}>
         <PageHeader title="My Appointments" icon={<CalendarMonthIcon />} />
@@ -88,6 +163,8 @@ const Appointments = () => {
 
   const renderCard = (apt: Appointment, _index: number) => {
     const statusColor = statusColorMap[apt.status] ?? 'default';
+    const id = appointmentId(apt);
+    const busy = !!actionLoadingId && actionLoadingId === id;
     return (
       <Card key={apt._id} sx={{ mb: 2, borderLeft: '4px solid', borderColor: apt.status === 'Waiting' ? '#C8862A' : apt.status === 'Completed' ? 'grey.400' : apt.status === 'Cancelled' ? 'error.main' : 'primary.main' }}>
         <CardContent sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, py: 2.5, '&:last-child': { pb: 2.5 } }}>
@@ -102,7 +179,7 @@ const Appointments = () => {
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 1.5, sm: 3 }, color: 'text.secondary', fontSize: '0.875rem' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <CalendarMonthIcon sx={{ fontSize: 16 }} />
-                {dayjs(apt.date).format('MMM D, YYYY')}
+                {formatDate(apt.date)}
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <AccessTimeIcon sx={{ fontSize: 16 }} />
@@ -127,7 +204,31 @@ const Appointments = () => {
               <Chip label="Read-only" size="small" variant="outlined" sx={{ color: 'text.secondary', borderColor: 'divider' }} />
             </Tooltip>
           ) : (
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }} />
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
+              {isActive(apt.status) && (
+                <>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    startIcon={<CancelIcon />}
+                    disabled={busy}
+                    onClick={() => setCancelTarget(apt)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<EditCalendarIcon />}
+                    disabled={busy}
+                    onClick={() => openReschedule(apt)}
+                  >
+                    Reschedule
+                  </Button>
+                </>
+              )}
+            </Box>
           )}
         </CardContent>
       </Card>
@@ -165,6 +266,76 @@ const Appointments = () => {
           <Typography variant="body2" color="text.secondary">Book your first appointment to get started.</Typography>
         </Box>
       )}
+
+      {/* UX-1: Cancel confirmation dialog */}
+      <Dialog open={!!cancelTarget} onClose={() => (submitting ? undefined : setCancelTarget(null))} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 700 }}>Cancel this appointment?</DialogTitle>
+        <DialogContent dividers>
+          {cancelTarget && (
+            <Typography variant="body2">
+              {cancelTarget.doctor?.name || 'This appointment'} on{' '}
+              {formatDate(cancelTarget.date)} at {formatTime12h(cancelTarget.time)}.
+              This cannot be undone.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setCancelTarget(null)} disabled={submitting}>
+            Keep it
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCancelConfirm}
+            disabled={submitting}
+          >
+            {submitting ? 'Cancelling…' : 'Cancel appointment'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* UX-1: Reschedule dialog — native date/time inputs to avoid slot-fetching complexity */}
+      <Dialog
+        open={!!rescheduleTarget}
+        onClose={() => (submitting ? undefined : setRescheduleTarget(null))}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>Reschedule appointment</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 0.5 }}>
+            <TextField
+              label="New date"
+              type="date"
+              value={rescheduleForm.date}
+              onChange={(e) => setRescheduleForm((prev) => ({ ...prev, date: e.target.value, time: '' }))}
+              required
+              slotProps={{ inputLabel: { shrink: true }, input: { inputProps: { min: dayjs().format('YYYY-MM-DD') } } }}
+            />
+            <TextField
+              label="New time"
+              type="time"
+              value={rescheduleForm.time}
+              onChange={(e) => setRescheduleForm((prev) => ({ ...prev, time: e.target.value }))}
+              required
+              slotProps={{ inputLabel: { shrink: true } }}
+              helperText="24-hour clock, e.g. 14:30"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setRescheduleTarget(null)} disabled={submitting}>
+            Go back
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleRescheduleSubmit}
+            disabled={submitting || !rescheduleForm.date || !rescheduleForm.time}
+          >
+            {submitting ? 'Saving…' : 'Confirm reschedule'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

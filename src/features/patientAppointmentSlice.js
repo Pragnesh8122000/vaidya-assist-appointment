@@ -60,9 +60,8 @@ export const getAppointments = createAsyncThunk('patient:getAppointments', async
   }
 });
 
-export const cancelAppointment = createAsyncThunk('patient:cancelAppointment', async (appointment, { rejectWithValue }) => {
+export const cancelAppointment = createAsyncThunk('patient:cancelAppointment', async (id, { rejectWithValue }) => {
   try {
-    const id = appointment.displayId || appointment._id;
     const { data } = await api.put(`/patient-portal/appointments/${id}/cancel`);
     return data.data;
   } catch (error) {
@@ -70,9 +69,8 @@ export const cancelAppointment = createAsyncThunk('patient:cancelAppointment', a
   }
 });
 
-export const rescheduleAppointment = createAsyncThunk('patient:rescheduleAppointment', async ({ appointment, date, time }, { rejectWithValue }) => {
+export const rescheduleAppointment = createAsyncThunk('patient:rescheduleAppointment', async ({ id, date, time }, { rejectWithValue }) => {
   try {
-    const id = appointment.displayId || appointment._id;
     const { data } = await api.patch(`/patient-portal/appointments/${id}/reschedule`, { date, time });
     return data.data;
   } catch (error) {
@@ -190,8 +188,7 @@ const patientSlice = createSlice({
         toast.success('Appointment booked successfully');
       })
       .addCase(cancelAppointment.pending, (state, action) => {
-        const apt = action.meta.arg;
-        state.actionLoadingId = apt?.displayId || apt?._id || apt;
+        state.actionLoadingId = action.meta.arg;
       })
       .addCase(cancelAppointment.fulfilled, (state, action) => {
         state.actionLoadingId = null;
@@ -206,8 +203,7 @@ const patientSlice = createSlice({
         state.actionLoadingId = null;
       })
       .addCase(rescheduleAppointment.pending, (state, action) => {
-        const apt = action.meta.arg.appointment;
-        state.actionLoadingId = apt?.displayId || apt?._id || action.meta.arg.id;
+        state.actionLoadingId = action.meta.arg.id;
       })
       .addCase(rescheduleAppointment.fulfilled, (state, action) => {
         state.actionLoadingId = null;

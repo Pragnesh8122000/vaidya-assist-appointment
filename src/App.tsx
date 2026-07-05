@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch } from './app/store';
 import { Provider } from 'react-redux';
 import { ThemeProvider, CssBaseline } from '@mui/material';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import store from './app/store';
@@ -14,13 +16,16 @@ import MainLayout from './layouts/MainLayout';
 import PrivateRoute from './components/PrivateRoute';
 import RestrictionBlock from './components/RestrictionBlock';
 import PatientChatWidget from './components/PatientChatWidget';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import Appointments from './pages/Appointments';
-import BookAppointment from './pages/BookAppointment';
 import { GUEST_RESTRICTION_MESSAGES } from './constants/guestData';
+
+// PERF-6: code-split each route so the initial bundle stays lean. Login/Register
+// (with framer-motion) and the date-pickers page only load when needed.
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Appointments = lazy(() => import('./pages/Appointments'));
+const BookAppointment = lazy(() => import('./pages/BookAppointment'));
 
 /**
  * Component that shows restriction block for a specific restricted path.
@@ -29,6 +34,13 @@ const GuestRestrictedPage = ({ path }: { path: string }) => {
   const messages = GUEST_RESTRICTION_MESSAGES[path] || GUEST_RESTRICTION_MESSAGES.default;
   return <RestrictionBlock title={messages.title} body={messages.body} />;
 };
+
+/** Lightweight full-height centered fallback shown while a lazy route loads. */
+const RouteFallback = () => (
+  <Box sx={{ display: 'flex', minHeight: '100dvh', alignItems: 'center', justifyContent: 'center' }}>
+    <CircularProgress />
+  </Box>
+);
 
 const AppRoutes = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -50,6 +62,7 @@ const AppRoutes = () => {
       <CssBaseline />
       <ToastContainer position="top-right" autoClose={3000} theme={darkMode ? 'dark' : 'light'} />
       <BrowserRouter>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/login" element={isAuthenticated && !isGuest ? <Navigate to="/" /> : <Login />} />
           <Route path="/register" element={isAuthenticated && !isGuest ? <Navigate to="/" /> : <Register />} />
@@ -70,6 +83,7 @@ const AppRoutes = () => {
             </Route>
           </Route>
         </Routes>
+        </Suspense>
       </BrowserRouter>
 
       {/* Chatbot hidden entirely from DOM for guests */}

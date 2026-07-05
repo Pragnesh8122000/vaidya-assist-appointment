@@ -1,5 +1,21 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { sendPatientMessage } from '../api/patientAgent';
+import { getAppointments } from './patientAppointmentSlice';
+
+// Agent tools that mutate the patient's appointments list. When the chatbot
+// invokes one of these, the Appointments page must be refreshed — the portal
+// has no socket.io push, so the list would otherwise go stale until a manual
+// reload. See UX-12.
+const APPOINTMENT_MUTATION_TOOLS = [
+  'patient_book_appointment',
+  'patient_reschedule_appointment',
+  'patient_cancel_appointment',
+];
+// The agent node sets `toolCalled: true` even on the failure path (it emits an
+// apology message), so a tool call alone is not proof of success. These
+// phrases match the apology templates in agent-service/src/patient-agent/nodes.ts
+// and let us suppress a redundant refetch when nothing actually changed.
+const APPOINTMENT_MUTATION_FAILURE_RX = /I'm sorry|couldn't|could not|already booked|unable to|not able to/i;
 
 /**
  * Send a message to the patient agent, including conversation state
@@ -7,7 +23,7 @@ import { sendPatientMessage } from '../api/patientAgent';
  */
 export const sendPatientChatMessage = createAsyncThunk(
   'patientChat/sendMessage',
-  async ({ message }, { getState, rejectWithValue }) => {
+  async ({ message }, { getState, rejectWithValue, dispatch }) => {
     try {
       const state = getState();
       const history = state.patientChat.messages.map((msg) => ({
@@ -19,6 +35,20 @@ export const sendPatientChatMessage = createAsyncThunk(
       const conversationState = state.patientChat.conversationState || null;
 
       const reply = await sendPatientMessage(message, history, conversationState);
+
+      // UX-12: refresh the appointments list when the agent successfully
+      // mutated it (book / reschedule / cancel). The reply carries the tool
+      // name on both success and failure, so we also require the reply text
+      // not to look like an apology before refetching.
+      if (
+        reply.toolCalled &&
+        typeof reply.toolName === 'string' &&
+        APPOINTMENT_MUTATION_TOOLS.includes(reply.toolName) &&
+        !APPOINTMENT_MUTATION_FAILURE_RX.test(reply.content || '')
+      ) {
+        dispatch(getAppointments({}));
+      }
+
       return { message, reply };
     } catch (error) {
       return rejectWithValue(

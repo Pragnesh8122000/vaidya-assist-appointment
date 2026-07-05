@@ -102,7 +102,7 @@ const Register = () => {
 
   return (
     <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible"
-      sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden',
+      sx={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden',
         bgcolor: 'background.default', py: 4 }}>
       <Card component={motion.div} variants={cardVariants} initial="hidden" animate="visible"
         sx={{ width: { xs: 'calc(100% - 32px)', sm: 600 }, maxWidth: 600, mx: 2, overflow: 'visible', position: 'relative', zIndex: 1, borderTop: '4px solid #C8862A' }}>
@@ -120,19 +120,19 @@ const Register = () => {
 
           <Box component="form" onSubmit={handleSubmit}>
             <Grid container spacing={2}>
-              <Grid size={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <motion.div variants={inputVariants} custom={0}>
                   <TextField fullWidth label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required
                     slotProps={{ input: { startAdornment: <InputAdornment position="start"><PersonIcon color="action" /></InputAdornment> } }} />
                 </motion.div>
               </Grid>
-              <Grid size={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <motion.div variants={inputVariants} custom={1}>
                   <TextField fullWidth label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required
                     slotProps={{ input: { startAdornment: <InputAdornment position="start"><EmailIcon color="action" /></InputAdornment> } }} />
                 </motion.div>
               </Grid>
-              <Grid size={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <motion.div variants={inputVariants} custom={2}>
                   <TextField fullWidth label="Password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required
                     slotProps={{ input: {
@@ -141,22 +141,22 @@ const Register = () => {
                     } }} />
                 </motion.div>
               </Grid>
-              <Grid size={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <motion.div variants={inputVariants} custom={3}>
                   <TextField fullWidth label="Phone Number" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
                 </motion.div>
               </Grid>
-              <Grid size={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <motion.div variants={inputVariants} custom={4}>
                   <TextField fullWidth label="Age" type="number" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} />
                 </motion.div>
               </Grid>
-              <Grid size={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <motion.div variants={inputVariants} custom={5}>
                   <TextField fullWidth label="Gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} />
                 </motion.div>
               </Grid>
-              <Grid size={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <motion.div variants={inputVariants} custom={6}>
                   <TextField fullWidth label="Blood Group" value={form.bloodGroup} onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })} />
                 </motion.div>

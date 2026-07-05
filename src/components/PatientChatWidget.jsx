@@ -232,6 +232,9 @@ const PatientChatWidget = () => {
                         </Typography>
                       </Box>
                     )}
+                    {/* UX-12: render agent responses as sanitized markdown once
+                        `react-markdown` + `rehype-sanitize` are added to deps.
+                        Until then, plain text with pre-wrap (safe, no XSS). */}
                     <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
                       {msg.content}
                     </Typography>

@@ -33,11 +33,14 @@ import EventIcon from '@mui/icons-material/Event';
 import SearchIcon from '@mui/icons-material/Search';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import PageHeader from '../components/PageHeader';
 import RestrictionBlock from '../components/RestrictionBlock';
 import { GUEST_RESTRICTION_MESSAGES } from '../constants/guestData';
+import { formatTime12h, formatDate } from '../utils/dateFormat';
 import {
   getDoctors,
   getAvailableSlots,
@@ -50,12 +53,6 @@ import {
 import type { BookAppointmentNavState, Doctor, Dependent } from '../types/store';
 
 const DOCTOR_SEARCH_DEBOUNCE_MS = 400;
-
-const formatTime12h = (hhmm: string): string => {
-  if (!hhmm) return '';
-  const d = dayjs(`2000-01-01 ${hhmm}`);
-  return d.isValid() ? d.format('h:mm A') : hhmm;
-};
 
 const ReviewRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
@@ -230,9 +227,10 @@ const BookAppointment = () => {
   };
 
   const bookingForName = form.bookedFor.type === 'dependent' ? form.bookedFor.dependentName : 'Myself';
-  const formattedDate = form.date ? form.date.format('dddd, MMMM D, YYYY') : '';
+  const formattedDate = form.date ? formatDate(form.date, 'dddd, MMMM D, YYYY') : '';
 
   return (
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
     <Box sx={{ pt: 2, pb: 6, px: { xs: 1, sm: 2 } }}>
       <PageHeader title="Book an Appointment" icon={<CalendarMonthIcon />} />
 
@@ -575,6 +573,7 @@ const BookAppointment = () => {
         </DialogActions>
       </Dialog>
     </Box>
+    </LocalizationProvider>
   );
 };
 
