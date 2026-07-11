@@ -19,6 +19,7 @@ export interface User {
   address?: string;
   role?: UserRole;
   clinicId?: string;
+  authProvider?: 'password' | 'google' | 'both';
 }
 
 export interface AuthState {
@@ -27,4 +28,6 @@ export interface AuthState {
   isGuest: boolean;
   loading: boolean;
   error: string | null;
+  /** False when a Google-sign-up patient hasn't completed their profile yet. */
+  profileComplete: boolean;
 }

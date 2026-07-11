@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch } from '../app/store';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { GoogleLogin } from '@react-oauth/google';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -20,7 +21,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ExploreIcon from '@mui/icons-material/Explore';
-import { login, clearError, enterGuestMode } from '../features/authSlice';
+import { login, clearError, enterGuestMode, googleLogin } from '../features/authSlice';
 import type { RootState } from '../app/store';
 
 const Login = () => {
@@ -41,6 +42,27 @@ const Login = () => {
     } catch {
       // Error toast is shown by the slice
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
+    if (!credentialResponse.credential) return;
+    dispatch(clearError());
+    try {
+      const result = await dispatch(googleLogin(credentialResponse.credential)).unwrap();
+      // If profile is incomplete, redirect to profile completion page
+      if (result?.profileComplete === false) {
+        navigate('/complete-profile');
+      } else {
+        navigate('/');
+      }
+    } catch {
+      // Error toast is shown by the slice
+    }
+  };
+
+  const handleGoogleError = () => {
+    // User cancelled the Google popup or the flow was interrupted.
+    // No error message needed — just return to the login form.
   };
 
   const handleGuestMode = () => {
@@ -238,11 +260,19 @@ const Login = () => {
             </Box>
           </Box>
 
-          <Typography variant="body2" sx={{ textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-            Your data is encrypted and secure
-          </Typography>
-
           <Divider sx={{ my: 2.5 }}>or</Divider>
+
+          {/* Google Sign-In button */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              text="signin_with"
+              shape="rectangular"
+              size="large"
+              width="340"
+            />
+          </Box>
 
           <Button
             variant="outlined"

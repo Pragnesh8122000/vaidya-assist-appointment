@@ -34,6 +34,36 @@ export const registerPatient = createAsyncThunk(
   }
 );
 
+/** Google Sign-In: sends the Google ID token to the backend for verification. */
+export const googleLogin = createAsyncThunk(
+  'auth/googleLogin',
+  async (idToken: string, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post('/auth/google', { idToken, role: 'patient' });
+      localStorage.setItem('token', data.data.token);
+      localStorage.setItem('refreshToken', data.data.refreshToken);
+      return data.data;
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      return rejectWithValue(err.response?.data?.message || 'Google sign-in failed');
+    }
+  }
+);
+
+/** Complete patient profile after first-time Google Sign-In. */
+export const completeProfile = createAsyncThunk(
+  'auth/completeProfile',
+  async (profileData: { phone: string; age?: string; gender?: string; address?: string; bloodGroup?: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.patch('/auth/complete-profile', profileData);
+      return data.data;
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      return rejectWithValue(err.response?.data?.message || 'Profile completion failed');
+    }
+  }
+);
+
 export const getMe = createAsyncThunk(
   'auth/getMe',
   async (_, { rejectWithValue }) => {
@@ -53,6 +83,7 @@ const initialState: AuthState = {
   isGuest: false,
   loading: false,
   error: null,
+  profileComplete: true,
 };
 
 const authSlice = createSlice({
@@ -63,6 +94,7 @@ const authSlice = createSlice({
       state.user = null;
       state.isAuthenticated = false;
       state.isGuest = false;
+      state.profileComplete = true;
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
     },
@@ -89,6 +121,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload?.user ?? null;
+        state.profileComplete = action.payload?.profileComplete ?? true;
         toast.success('Welcome back!');
       })
       .addCase(login.rejected, (state, action) => {
@@ -101,6 +134,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload?.user ?? null;
+        state.profileComplete = true;
         toast.success('Account created successfully');
       })
       .addCase(registerPatient.rejected, (state, action) => {
@@ -108,9 +142,39 @@ const authSlice = createSlice({
         state.error = typeof action.payload === 'string' ? action.payload : null;
         toast.error(typeof action.payload === 'string' ? action.payload : 'Registration failed');
       })
+      .addCase(googleLogin.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(googleLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isAuthenticated = true;
+        state.user = action.payload?.user ?? null;
+        state.profileComplete = action.payload?.profileComplete ?? true;
+        if (state.profileComplete) {
+          toast.success('Welcome back!');
+        }
+      })
+      .addCase(googleLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = typeof action.payload === 'string' ? action.payload : null;
+        toast.error(typeof action.payload === 'string' ? action.payload : 'Google sign-in failed');
+      })
+      .addCase(completeProfile.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(completeProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload?.user ?? state.user;
+        state.profileComplete = true;
+        toast.success('Profile completed successfully');
+      })
+      .addCase(completeProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = typeof action.payload === 'string' ? action.payload : null;
+        toast.error(typeof action.payload === 'string' ? action.payload : 'Profile completion failed');
+      })
       .addCase(getMe.fulfilled, (state, action) => {
         state.isAuthenticated = true;
         state.user = action.payload as User;
+        // Rehydrate profileComplete from the server so page-refresh doesn't
+        // reset incomplete-profile users back to the default (true).
+        state.profileComplete = action.payload?.profileComplete ?? true;
       })
       .addCase(getMe.rejected, (state) => {
         state.isAuthenticated = false;

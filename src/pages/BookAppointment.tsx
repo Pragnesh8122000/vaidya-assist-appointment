@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch } from '../app/store';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import type { RootState } from '../app/store';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -68,7 +68,7 @@ const BookAppointment = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isGuest } = useSelector((state: RootState) => state.auth);
+  const { isGuest, profileComplete } = useSelector((state: RootState) => state.auth);
 
   // All hooks are called unconditionally, before any early return, so the Rules
   // of Hooks hold regardless of guest mode. Audit FE-3.
@@ -113,6 +113,12 @@ const BookAppointment = () => {
   if (isGuest) {
     const messages = GUEST_RESTRICTION_MESSAGES['/book'] || GUEST_RESTRICTION_MESSAGES.default;
     return <RestrictionBlock title={messages.title} body={messages.body} />;
+  }
+
+  // Incomplete profile — redirect to profile completion page.
+  // This is defense-in-depth; the route guard in App.tsx is the primary check.
+  if (!profileComplete) {
+    return <Navigate to="/complete-profile" />;
   }
 
   // FE-10: doctors are typed `Doctor[]` from the store — no more `as string` casts.

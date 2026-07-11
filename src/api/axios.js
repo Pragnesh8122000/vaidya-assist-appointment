@@ -54,7 +54,7 @@ api.interceptors.response.use(
 );
 
 function isAuthEndpoint(url) {
-  return typeof url === 'string' && /\/auth\/(login|register|register-patient|refresh-token)/.test(url);
+  return typeof url === 'string' && /\/auth\/(login|register|register-patient|refresh-token|google|complete-profile)/.test(url);
 }
 
 function clearSessionAndRedirect() {

@@ -22,6 +22,7 @@ import { GUEST_RESTRICTION_MESSAGES } from './constants/guestData';
 // (with framer-motion) and the date-pickers page only load when needed.
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const CompleteProfile = lazy(() => import('./pages/CompleteProfile'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Appointments = lazy(() => import('./pages/Appointments'));
@@ -44,7 +45,7 @@ const RouteFallback = () => (
 
 const AppRoutes = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated, isGuest } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, isGuest, profileComplete } = useSelector((state: RootState) => state.auth);
   const { darkMode } = useSelector((state: RootState) => state.ui);
   const theme = getTheme(darkMode ? 'dark' : 'light');
 
@@ -66,6 +67,7 @@ const AppRoutes = () => {
         <Routes>
           <Route path="/login" element={isAuthenticated && !isGuest ? <Navigate to="/" /> : <Login />} />
           <Route path="/register" element={isAuthenticated && !isGuest ? <Navigate to="/" /> : <Register />} />
+          <Route path="/complete-profile" element={isAuthenticated && !isGuest && !profileComplete ? <CompleteProfile /> : <Navigate to="/" />} />
 
           <Route element={<PrivateRoute />}>
             <Route element={<MainLayout />}>
@@ -74,7 +76,7 @@ const AppRoutes = () => {
               <Route path="/profile" element={<Profile />} />
               <Route
                 path="/book"
-                element={isGuest ? <GuestRestrictedPage path="/book" /> : <BookAppointment />}
+                element={isGuest ? <GuestRestrictedPage path="/book" /> : !profileComplete ? <Navigate to="/complete-profile" /> : <BookAppointment />}
               />
               <Route
                 path="/settings"
