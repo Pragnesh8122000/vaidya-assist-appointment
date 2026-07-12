@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Box from '@mui/material/Box';
-import Fab from '@mui/material/Fab';
 import Drawer from '@mui/material/Drawer';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -66,28 +65,7 @@ const PatientChatWidget = () => {
 
   return (
     <>
-      {/* Persistent floating entry point */}
-      <Fab
-        color="primary"
-        aria-label="Open health assistant"
-        aria-haspopup="dialog"
-        onClick={() => dispatch(togglePatientChat())}
-        sx={{
-          position: 'fixed',
-          right: 24,
-          bottom: 24,
-          zIndex: 1300,
-          '&.Mui-focusVisible': {
-            outline: '3px solid #C8862A',
-            outlineOffset: '3px',
-            boxShadow: 6,
-          },
-        }}
-      >
-        <MedicalServicesIcon />
-      </Fab>
-
-      {/* Right-side slide-in panel */}
+      {/* Right-side slide-in panel — opened via navbar "Assistant" button */}
       <Drawer
         anchor="right"
         open={isOpen}

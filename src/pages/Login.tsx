@@ -23,6 +23,7 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ExploreIcon from '@mui/icons-material/Explore';
 import { login, clearError, enterGuestMode, googleLogin } from '../features/authSlice';
 import type { RootState } from '../app/store';
+import { toast } from 'react-toastify';
 
 const Login = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -45,7 +46,12 @@ const Login = () => {
   };
 
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
-    if (!credentialResponse.credential) return;
+    if (!credentialResponse.credential) {
+      // Google returned a response without a credential — this can happen if
+      // the One Tap flow is interrupted or third-party cookies are blocked.
+      toast.error('Google sign-in failed. Please try again or use email/password.');
+      return;
+    }
     dispatch(clearError());
     try {
       const result = await dispatch(googleLogin(credentialResponse.credential)).unwrap();
@@ -61,8 +67,9 @@ const Login = () => {
   };
 
   const handleGoogleError = () => {
-    // User cancelled the Google popup or the flow was interrupted.
-    // No error message needed — just return to the login form.
+    // Google login failed — could be a popup blocked, third-party cookies disabled,
+    // or a configuration error. Show a helpful message instead of silently failing.
+    toast.error('Google sign-in failed. Please check your browser settings or try email/password login.');
   };
 
   const handleGuestMode = () => {

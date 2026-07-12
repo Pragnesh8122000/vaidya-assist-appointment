@@ -13,7 +13,6 @@ import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import InputAdornment from '@mui/material/InputAdornment';
 import Grid from '@mui/material/Grid';
-import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import { completeProfile, clearError } from '../features/authSlice';
@@ -127,13 +126,12 @@ const CompleteProfile = () => {
         <CardContent sx={{ pt: 6, px: 4, pb: 4 }}>
           <Typography
             variant="h4"
-            textAlign="center"
             gutterBottom
-            sx={{ fontFamily: '"Crimson Pro", Georgia, serif', fontWeight: 700 }}
+            sx={{ fontFamily: '"Crimson Pro", Georgia, serif', fontWeight: 700, textAlign: 'center' }}
           >
             Complete Your Profile
           </Typography>
-          <Typography variant="body2" textAlign="center" color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
             We just need a few more details to finish setting up your account.
           </Typography>
 
