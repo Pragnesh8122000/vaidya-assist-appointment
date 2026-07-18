@@ -10,6 +10,7 @@ import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -28,6 +29,8 @@ import {
   getAppointments,
   cancelAppointment,
   rescheduleAppointment,
+  getAvailableSlots,
+  clearSlots,
 } from '../features/patientAppointmentSlice';
 import { GUEST_APPOINTMENTS } from '../constants/guestData';
 import { formatTime12h, formatDate } from '../utils/dateFormat';
@@ -55,6 +58,8 @@ const Appointments = () => {
     loading,
     error,
     actionLoadingId,
+    slots,
+    slotsLoading,
   } = useSelector((state: RootState) => state.patient);
 
   // FE-8: cast once to the canonical `Appointment[]` interface instead of
@@ -108,7 +113,26 @@ const Appointments = () => {
       date: dayjs(apt.date).format('YYYY-MM-DD'),
       time: apt.time,
     });
+    if (apt.doctor?._id) {
+      dispatch(getAvailableSlots({ doctorId: apt.doctor._id, date: dayjs(apt.date).format('YYYY-MM-DD') }));
+    }
   };
+
+  const activeSlots = slots &&
+    rescheduleTarget?.doctor?._id &&
+    slots.doctorId === rescheduleTarget.doctor._id &&
+    slots.date === rescheduleForm.date
+    ? slots.items.map((slot) => {
+      // The patient's current slot is held by their own appointment; allow them
+      // to re-select it because the backend excludes this appointment from the
+      // conflict check when rescheduling.
+      const originalDate = dayjs(rescheduleTarget.date).format('YYYY-MM-DD');
+      if (slot.time === rescheduleTarget.time && rescheduleForm.date === originalDate) {
+        return { ...slot, available: true };
+      }
+      return slot;
+    })
+    : null;
 
   const handleRescheduleSubmit = async () => {
     if (!rescheduleTarget) return;
@@ -294,10 +318,15 @@ const Appointments = () => {
         </DialogActions>
       </Dialog>
 
-      {/* UX-1: Reschedule dialog — native date/time inputs to avoid slot-fetching complexity */}
+      {/* UX-1: Reschedule dialog — date + available slot grid so patients can only
+          pick times that are actually free (their current slot is shown free). */}
       <Dialog
         open={!!rescheduleTarget}
-        onClose={() => (submitting ? undefined : setRescheduleTarget(null))}
+        onClose={() => {
+          if (submitting) return;
+          dispatch(clearSlots());
+          setRescheduleTarget(null);
+        }}
         fullWidth
         maxWidth="xs"
       >
@@ -308,23 +337,65 @@ const Appointments = () => {
               label="New date"
               type="date"
               value={rescheduleForm.date}
-              onChange={(e) => setRescheduleForm((prev) => ({ ...prev, date: e.target.value, time: '' }))}
+              onChange={(e) => {
+                const newDate = e.target.value;
+                setRescheduleForm((prev) => ({ ...prev, date: newDate, time: '' }));
+                if (rescheduleTarget?.doctor?._id && newDate) {
+                  dispatch(getAvailableSlots({ doctorId: rescheduleTarget.doctor._id, date: newDate }));
+                }
+              }}
               required
               slotProps={{ inputLabel: { shrink: true }, input: { inputProps: { min: dayjs().format('YYYY-MM-DD') } } }}
             />
-            <TextField
-              label="New time"
-              type="time"
-              value={rescheduleForm.time}
-              onChange={(e) => setRescheduleForm((prev) => ({ ...prev, time: e.target.value }))}
-              required
-              slotProps={{ inputLabel: { shrink: true } }}
-              helperText="24-hour clock, e.g. 14:30"
-            />
+
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
+                Available time slots
+              </Typography>
+
+              {!rescheduleTarget?.doctor?._id || !rescheduleForm.date ? (
+                <Typography variant="body2" color="text.secondary">
+                  Select a date to see available times.
+                </Typography>
+              ) : slotsLoading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <CircularProgress size={18} />
+                  <Typography variant="body2" color="text.secondary">Loading available times…</Typography>
+                </Box>
+              ) : activeSlots && activeSlots.length > 0 ? (
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {activeSlots.map((slot: { time: string; available: boolean }) => {
+                    const selected = rescheduleForm.time === slot.time;
+                    return (
+                      <Chip
+                        key={slot.time}
+                        label={formatTime12h(slot.time)}
+                        onClick={() => slot.available && setRescheduleForm((prev) => ({ ...prev, time: slot.time }))}
+                        disabled={!slot.available}
+                        color={selected ? 'primary' : 'default'}
+                        variant={selected ? 'filled' : 'outlined'}
+                        clickable={slot.available}
+                        sx={{ fontWeight: 600, borderRadius: 2, px: 0.5, minHeight: 36 }}
+                      />
+                    );
+                  })}
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No slots available for this date. Please try another day.
+                </Typography>
+              )}
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setRescheduleTarget(null)} disabled={submitting}>
+          <Button
+            onClick={() => {
+              dispatch(clearSlots());
+              setRescheduleTarget(null);
+            }}
+            disabled={submitting}
+          >
             Go back
           </Button>
           <Button
