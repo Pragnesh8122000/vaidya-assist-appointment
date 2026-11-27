@@ -259,26 +259,36 @@ const MainLayout = () => {
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
           <Toolbar>
-            {isMobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon /></IconButton>}
-            <Typography variant="h6" color="text.primary" sx={{ fontWeight: 600, flex: 1 }}>
+            {isMobile && <IconButton aria-label="Open navigation" onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon /></IconButton>}
+            {/* The page title is set with sx: the AppBar's own text colour is white, and the color prop
+                does not override it here, so the title rendered white on the white bar. Phones hide it,
+                since every page opens with its own heading, which leaves the Assistant button room. */}
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{ flex: 1, minWidth: 0, color: 'text.primary', fontWeight: 600, visibility: { xs: 'hidden', sm: 'visible' } }}
+            >
               {flatItems.find(i => i.path === location.pathname)?.text || 'Vaidya Patient'}
             </Typography>
 
-            <IconButton onClick={() => dispatch(toggleDarkMode())} sx={{ mr: 1 }}>
+            <IconButton
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={() => dispatch(toggleDarkMode())}
+              sx={{ mr: { xs: 0.5, sm: 1 }, color: 'text.secondary' }}
+            >
               {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
             </IconButton>
 
             <Button
               variant="contained"
-              size="small"
               startIcon={<MedicalServicesIcon />}
               onClick={() => dispatch(openPatientChat())}
-              sx={{ mr: 1, textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 1.5 }}
+              sx={{ mr: { xs: 0.5, sm: 1 }, flexShrink: 0, whiteSpace: 'nowrap', minHeight: 40, borderRadius: 2, px: 2, fontWeight: 600 }}
             >
               Assistant
             </Button>
 
-            <IconButton onClick={(e) => setUserAnchor(e.currentTarget)}>
+            <IconButton aria-label="Account menu" onClick={(e) => setUserAnchor(e.currentTarget)} sx={{ flexShrink: 0 }}>
               <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: 14 }}>{user?.name?.charAt(0)}</Avatar>
             </IconButton>
 
@@ -297,7 +307,7 @@ const MainLayout = () => {
           </Toolbar>
         </AppBar>
 
-        <Box component="main" id="main-content" tabIndex={-1} sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', p: 3, '&:focus': { outline: 'none' } }}>
+        <Box component="main" id="main-content" tabIndex={-1} sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', p: { xs: 2, sm: 3 }, '&:focus': { outline: 'none' } }}>
           <Outlet />
           <Footer />
         </Box>
