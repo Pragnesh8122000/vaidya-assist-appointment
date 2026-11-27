@@ -261,12 +261,27 @@ const BookAppointment = () => {
               exclusive
               value={form.bookedFor.type}
               onChange={handleBookingForChange}
-              sx={{ mb: form.bookedFor.type === 'dependent' ? 2 : 0, flexWrap: 'wrap', gap: 1 }}
+              sx={{
+                mb: form.bookedFor.type === 'dependent' ? 2 : 0,
+                display: 'grid',
+                // side by side while both fit, stacked on the narrowest phones
+                gridTemplateColumns: { xs: 'repeat(auto-fit, minmax(160px, 1fr))', sm: 'auto auto' },
+                justifyContent: 'start',
+                gap: 1,
+                // Spaced buttons each keep a full border and rounded corners; MUI's grouped
+                // styles otherwise strip the inner edge as if the buttons were joined.
+                '& .MuiToggleButtonGroup-grouped, & .MuiToggleButtonGroup-grouped.MuiToggleButtonGroup-middleButton, & .MuiToggleButtonGroup-grouped.MuiToggleButtonGroup-lastButton': {
+                  m: 0,
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                },
+              }}
             >
-              <ToggleButton value="myself" sx={{ px: 3, py: 1, borderRadius: 2, borderColor: 'divider' }}>
+              <ToggleButton value="myself" sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap' }}>
                 <PersonIcon sx={{ mr: 1, fontSize: 20 }} /> Myself
               </ToggleButton>
-              <ToggleButton value="dependent" sx={{ px: 3, py: 1, borderRadius: 2, borderColor: 'divider' }}>
+              <ToggleButton value="dependent" sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap' }}>
                 <GroupIcon sx={{ mr: 1, fontSize: 20 }} /> Someone else
               </ToggleButton>
             </ToggleButtonGroup>
@@ -331,7 +346,7 @@ const BookAppointment = () => {
             <TextField
               fullWidth
               size="small"
-              placeholder="Search by doctor name or email"
+              placeholder="Search by name or email"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               sx={{ mb: 2 }}
@@ -518,7 +533,18 @@ const BookAppointment = () => {
             Please confirm these details. You can go back to change anything before booking.
           </Alert>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        {/* Phones stack the two actions full width (the main one on top) instead of wrapping each label onto two lines */}
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            gap: 1,
+            flexDirection: { xs: 'column-reverse', sm: 'row' },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            '& > :not(style) ~ :not(style)': { ml: { xs: 0, sm: 1 } },
+            '& .MuiButton-root': { whiteSpace: 'nowrap', minHeight: 44 },
+          }}
+        >
           <Button onClick={() => setReviewOpen(false)} disabled={submitting}>
             Go Back
           </Button>
